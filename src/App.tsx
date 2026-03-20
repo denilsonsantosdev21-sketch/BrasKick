@@ -66,6 +66,10 @@ export default function App() {
   // Monitora o estado de autenticação
   useEffect(() => {
     const initAuth = async () => {
+      if (!isSupabaseConfigured) {
+        setIsAuthLoading(false);
+        return;
+      }
       try {
         const { data: { session } } = await supabase.auth.getSession();
         setUser(session?.user ?? null);
@@ -78,13 +82,15 @@ export default function App() {
 
     initAuth();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-      if (session?.user) setAuthError(null);
-    });
+    if (isSupabaseConfigured) {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        setUser(session?.user ?? null);
+        if (session?.user) setAuthError(null);
+      });
 
-    return () => subscription.unsubscribe();
-  }, []);
+      return () => subscription.unsubscribe();
+    }
+  }, [isSupabaseConfigured]);
 
   // Carrega o save do Supabase quando o usuário loga
   useEffect(() => {
@@ -128,6 +134,7 @@ export default function App() {
   };
 
   const handleAuth = async (type: 'login' | 'signup') => {
+    console.log(`Iniciando ${type}...`, { email: authEmail });
     try {
       setAuthError(null);
       setIsAuthLoading(true);
@@ -136,17 +143,21 @@ export default function App() {
         throw new Error("Preencha todos os campos.");
       }
 
-      const { error } = type === 'login' 
+      const { data, error } = type === 'login' 
         ? await supabase.auth.signInWithPassword({ email: authEmail, password: authPassword })
         : await supabase.auth.signUp({ email: authEmail, password: authPassword });
 
-      if (error) throw error;
+      if (error) {
+        console.error(`Erro no ${type}:`, error);
+        throw error;
+      }
       
+      console.log(`${type} bem-sucedido:`, data);
       if (type === 'signup') {
         setAuthError("Cadastro realizado! Verifique seu e-mail.");
       }
     } catch (error: any) {
-      console.error("Erro de autenticação:", error);
+      console.error("Erro de autenticação detalhado:", error);
       setAuthError(error.message || "Erro ao processar solicitação.");
     } finally {
       setIsAuthLoading(false);
@@ -329,8 +340,15 @@ export default function App() {
                 BRASKICK
               </h1>
               {!isSupabaseConfigured && (
-                <div className="mb-4 p-3 bg-amber-500/20 border border-amber-500/30 rounded-xl text-[10px] text-amber-200 font-bold uppercase tracking-widest">
-                  ⚠️ SUPABASE NÃO CONFIGURADO. USE O MODO LOCAL.
+                <div className="mb-4 p-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl text-left">
+                  <p className="text-[10px] text-amber-200 font-bold uppercase tracking-widest mb-1">
+                    ⚠️ SUPABASE NÃO CONFIGURADO
+                  </p>
+                  <p className="text-[9px] text-amber-200/70 leading-relaxed">
+                    1. Adicione VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY em Settings > Environment Variables.<br/>
+                    2. Reinicie o servidor de desenvolvimento.<br/>
+                    3. Ou jogue no modo local abaixo.
+                  </p>
                 </div>
               )}
               <p className="text-braskick-muted text-sm font-body uppercase tracking-widest">

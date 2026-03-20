@@ -4,7 +4,9 @@ const supabaseUrl = (import.meta as any).env.VITE_SUPABASE_URL;
 const supabaseAnonKey = (import.meta as any).env.VITE_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn('Supabase URL or Anon Key is missing. Please check your environment variables.');
+  console.error('ERRO: Supabase URL ou Anon Key ausentes! O login não funcionará até que as variáveis de ambiente sejam configuradas no AI Studio.');
+} else {
+  console.log('Supabase configurado com sucesso.');
 }
 
 export const supabase = createClient(
