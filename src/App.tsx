@@ -345,7 +345,7 @@ export default function App() {
                     ⚠️ SUPABASE NÃO CONFIGURADO
                   </p>
                   <p className="text-[9px] text-amber-200/70 leading-relaxed">
-                    1. Adicione VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY em Settings > Environment Variables.<br/>
+                    1. Adicione VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY em Settings → Environment Variables.<br/>
                     2. Reinicie o servidor de desenvolvimento.<br/>
                     3. Ou jogue no modo local abaixo.
                   </p>
