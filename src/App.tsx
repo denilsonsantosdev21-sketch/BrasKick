@@ -54,16 +54,33 @@ export default function App() {
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
   const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [isLocalPlay, setIsLocalPlay] = useState(false);
+
+  const isSupabaseConfigured = useMemo(() => {
+    const url = (import.meta as any).env.VITE_SUPABASE_URL;
+    const key = (import.meta as any).env.VITE_SUPABASE_ANON_KEY;
+    return !!url && !!key && url !== '' && key !== '';
+  }, []);
 
   // Monitora o estado de autenticação
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      setIsAuthLoading(false);
-    });
+    const initAuth = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        setUser(session?.user ?? null);
+      } catch (err) {
+        console.error("Erro ao obter sessão:", err);
+      } finally {
+        setIsAuthLoading(false);
+      }
+    };
+
+    initAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
+      if (session?.user) setAuthError(null);
     });
 
     return () => subscription.unsubscribe();
@@ -112,15 +129,25 @@ export default function App() {
 
   const handleAuth = async (type: 'login' | 'signup') => {
     try {
+      setAuthError(null);
       setIsAuthLoading(true);
+      
+      if (!authEmail || !authPassword) {
+        throw new Error("Preencha todos os campos.");
+      }
+
       const { error } = type === 'login' 
         ? await supabase.auth.signInWithPassword({ email: authEmail, password: authPassword })
         : await supabase.auth.signUp({ email: authEmail, password: authPassword });
 
       if (error) throw error;
-      if (type === 'signup') alert("Verifique seu e-mail para confirmar o cadastro!");
+      
+      if (type === 'signup') {
+        setAuthError("Cadastro realizado! Verifique seu e-mail.");
+      }
     } catch (error: any) {
-      alert(error.message);
+      console.error("Erro de autenticação:", error);
+      setAuthError(error.message || "Erro ao processar solicitação.");
     } finally {
       setIsAuthLoading(false);
     }
@@ -286,7 +313,7 @@ export default function App() {
 
   // Tela Inicial de Seleção de Time
   if (!gameState) {
-    if (!user && !isAuthLoading) {
+    if (!user && !isAuthLoading && !isLocalPlay) {
       return (
         <div className="min-h-screen bg-braskick-noite flex flex-col items-center justify-center p-6">
           <motion.div 
@@ -301,19 +328,30 @@ export default function App() {
               <h1 className="text-5xl font-display mb-2 bg-gradient-to-b from-white to-braskick-muted bg-clip-text text-transparent">
                 BRASKICK
               </h1>
+              {!isSupabaseConfigured && (
+                <div className="mb-4 p-3 bg-amber-500/20 border border-amber-500/30 rounded-xl text-[10px] text-amber-200 font-bold uppercase tracking-widest">
+                  ⚠️ SUPABASE NÃO CONFIGURADO. USE O MODO LOCAL.
+                </div>
+              )}
               <p className="text-braskick-muted text-sm font-body uppercase tracking-widest">
                 FAÇA LOGIN PARA SALVAR SEU PROGRESSO
               </p>
             </div>
 
             <div className="braskick-card space-y-4">
+              {authError && (
+                <div className={`p-3 rounded-xl text-xs font-bold uppercase tracking-widest text-center ${authError.includes('realizado') ? 'bg-braskick-verde/20 text-braskick-verde' : 'bg-red-500/20 text-red-400'}`}>
+                  {authError}
+                </div>
+              )}
               <div>
                 <label className="block text-xs font-bold text-braskick-muted uppercase tracking-widest mb-2">E-mail</label>
                 <input 
                   type="email" 
                   value={authEmail}
                   onChange={(e) => setAuthEmail(e.target.value)}
-                  className="w-full bg-braskick-noite border border-white/10 rounded-xl p-4 text-white focus:border-braskick-verde transition-colors outline-none"
+                  disabled={!isSupabaseConfigured}
+                  className="w-full bg-braskick-noite border border-white/10 rounded-xl p-4 text-white focus:border-braskick-verde transition-colors outline-none disabled:opacity-50"
                   placeholder="seu@email.com"
                 />
               </div>
@@ -323,29 +361,30 @@ export default function App() {
                   type="password" 
                   value={authPassword}
                   onChange={(e) => setAuthPassword(e.target.value)}
-                  className="w-full bg-braskick-noite border border-white/10 rounded-xl p-4 text-white focus:border-braskick-verde transition-colors outline-none"
+                  disabled={!isSupabaseConfigured}
+                  className="w-full bg-braskick-noite border border-white/10 rounded-xl p-4 text-white focus:border-braskick-verde transition-colors outline-none disabled:opacity-50"
                   placeholder="••••••••"
                 />
               </div>
               <div className="grid grid-cols-2 gap-4 pt-4">
                 <button 
                   onClick={() => handleAuth('login')}
-                  disabled={isAuthLoading}
-                  className="braskick-button-primary"
+                  disabled={isAuthLoading || !isSupabaseConfigured}
+                  className="braskick-button-primary disabled:opacity-50"
                 >
                   {isAuthLoading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : 'ENTRAR'}
                 </button>
                 <button 
                   onClick={() => handleAuth('signup')}
-                  disabled={isAuthLoading}
-                  className="braskick-button-secondary"
+                  disabled={isAuthLoading || !isSupabaseConfigured}
+                  className="braskick-button-secondary disabled:opacity-50"
                 >
                   CADASTRAR
                 </button>
               </div>
               <div className="pt-4 text-center">
                 <button 
-                  onClick={() => setGameState({} as any)} // Mock state to bypass login for local play if desired
+                  onClick={() => setIsLocalPlay(true)}
                   className="text-xs text-braskick-muted hover:text-white transition-colors uppercase tracking-widest"
                 >
                   JOGAR SEM SALVAR (LOCAL)
