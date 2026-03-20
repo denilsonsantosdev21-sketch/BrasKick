@@ -1,0 +1,71 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Bebas+Neue&family=Barlow+Condensed:wght@400;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --font-bebas: "Bebas Neue", sans-serif;
+  --font-barlow: "Barlow Condensed", sans-serif;
+  
+  --color-verde: #009C3B;
+  --color-ouro: #FFDF00;
+  --color-azul: #002776;
+  --color-noite: #0D1117;
+  --color-noite-2: #161B22;
+  --color-noite-3: #1A2332;
+  --color-noite-4: #21293A;
+}
+
+@layer base {
+  body {
+    @apply bg-noite text-[#E8EAF0] font-barlow antialiased;
+  }
+}
+
+@layer components {
+  .markdown-body {
+    @apply leading-relaxed text-sm md:text-base;
+  }
+
+  .markdown-body pre {
+    @apply bg-neutral-900 border border-neutral-800 rounded-xl p-4 my-4 overflow-x-auto font-mono text-emerald-400;
+    white-space: pre-wrap;
+  }
+
+  .markdown-body code {
+    @apply font-mono text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20;
+  }
+
+  .markdown-body h1, .markdown-body h2, .markdown-body h3 {
+    @apply font-bold tracking-tight mb-4 mt-6 text-white;
+  }
+
+  .markdown-body h1 { @apply text-2xl; }
+  .markdown-body h2 { @apply text-xl; }
+  .markdown-body h3 { @apply text-lg; }
+
+  .markdown-body p {
+    @apply mb-4 last:mb-0;
+  }
+
+  .markdown-body ul, .markdown-body ol {
+    @apply mb-4 ml-4 space-y-2;
+  }
+
+  .markdown-body li {
+    @apply list-disc marker:text-emerald-500;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-neutral-800 rounded-full hover:bg-neutral-700 transition-colors;
+  }
+}

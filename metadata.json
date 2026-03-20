@@ -1,0 +1,5 @@
+{
+  "name": "Kickoff Manager",
+  "description": "Um simulador de gerenciamento de futebol inspirado no Superkickoff, com simulação de partidas, tabelas e gestão de elenco.",
+  "requestFramePermissions": []
+}
