@@ -1,26 +1,33 @@
-export type Position = 'GK' | 'DF' | 'MF' | 'FW';
+export type CompetitionType = 'LEAGUE' | 'TOURNAMENT';
+
+export interface Competition {
+  id: string;
+  name: string;
+  type: CompetitionType;
+  region: 'BRAZIL' | 'EUROPE' | 'SOUTH_AMERICA' | 'WORLD';
+  tier?: number;
+}
 
 export interface Player {
   id: string;
   name: string;
-  age: number;
-  position: Position;
+  position: 'GK' | 'DF' | 'MF' | 'FW';
   overall: number;
-  nationality: string;
-  teamId: string;
+  age: number;
+  value: number;
   goals: number;
   assists: number;
-  value: number;
 }
 
 export interface Team {
   id: string;
   name: string;
+  leagueId: string;
   overall: number;
   attack: number;
   midfield: number;
   defense: number;
-  budget: number;
+  players: Player[];
   points: number;
   played: number;
   won: number;
@@ -29,33 +36,36 @@ export interface Team {
   gf: number;
   ga: number;
   gd: number;
-  players: Player[];
+  budget: number;
   color: string;
+}
+
+export interface MatchEvent {
+  minute: number;
+  type: 'goal' | 'yellow_card' | 'red_card' | 'injury';
+  playerName: string;
+  teamId: string;
 }
 
 export interface Match {
   id: string;
+  week: number;
+  competitionId: string;
   homeTeamId: string;
   awayTeamId: string;
   homeScore: number;
   awayScore: number;
   played: boolean;
-  week: number;
   events: MatchEvent[];
-}
-
-export interface MatchEvent {
-  minute: number;
-  type: 'GOAL' | 'YELLOW' | 'RED' | 'SUB';
-  teamId: string;
-  playerName: string;
 }
 
 export interface GameState {
   userTeamId: string;
   teams: Team[];
+  competitions: Competition[];
   currentWeek: number;
   totalWeeks: number;
+  season: number;
   matches: Match[];
   history: Match[];
 }

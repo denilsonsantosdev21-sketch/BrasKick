@@ -1,5 +1,5 @@
 {
-  "name": "Kickoff Manager",
-  "description": "Um simulador de gerenciamento de futebol inspirado no Superkickoff, com simulação de partidas, tabelas e gestão de elenco.",
+  "name": "BrasKick",
+  "description": "O simulador de gerenciamento de futebol definitivo. Gerencie seu elenco, táticas e conquiste a glória no BrasKick.",
   "requestFramePermissions": []
 }

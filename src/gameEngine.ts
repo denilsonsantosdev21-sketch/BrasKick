@@ -1,71 +1,235 @@
-import { Team, Match, MatchEvent, Player } from './types';
+import { Team, Match, Player, MatchEvent, Competition } from './types';
 
-export const simulateMatch = (home: Team, away: Team, week: number): Match => {
-  const homeAdvantage = 5;
-  const homeStrength = (home.attack + home.midfield + home.defense) / 3 + homeAdvantage;
-  const awayStrength = (away.attack + away.midfield + away.defense) / 3;
+// Gera nomes aleatórios para jogadores
+const firstNames = ["Gabriel", "Lucas", "Mateus", "Pedro", "Enzo", "Rafael", "Thiago", "Bruno", "Diego", "Felipe", "Marcos", "Rodrigo", "Vitor", "André", "Daniel", "Kevin", "Harry", "Jack", "Leo", "Cristiano", "Kylian", "Erling", "Mohamed", "Bernardo", "Ruben", "Luka", "Toni", "Vinicius", "Rodrygo", "Alisson", "Ederson"];
+const lastNames = ["Silva", "Santos", "Oliveira", "Souza", "Rodrigues", "Ferreira", "Alves", "Pereira", "Lima", "Gomes", "Costa", "Ribeiro", "Martins", "Carvalho", "Almeida", "De Bruyne", "Kane", "Grealish", "Messi", "Ronaldo", "Mbappé", "Haaland", "Salah", "Fernandes", "Dias", "Modric", "Kroos", "Junior", "Goes", "Becker", "Moraes"];
 
-  const totalStrength = homeStrength + awayStrength;
-  const homeWinProb = homeStrength / totalStrength;
+const generatePlayerName = () => {
+  return `${firstNames[Math.floor(Math.random() * firstNames.length)]} ${lastNames[Math.floor(Math.random() * lastNames.length)]}`;
+};
 
-  // Simple goal simulation
-  const simulateGoals = (strength: number, opponentStrength: number) => {
-    const baseChance = 0.05; // Base chance per "opportunity"
-    const opportunities = 10; // Number of "chances" in a match
-    let goals = 0;
-    for (let i = 0; i < opportunities; i++) {
-      const chance = baseChance * (strength / opponentStrength);
-      if (Math.random() < chance) {
-        goals++;
+// Gera um elenco inicial para um time
+const generateSquad = (teamOverall: number): Player[] => {
+  const squad: Player[] = [];
+  const positions: ('GK' | 'DF' | 'MF' | 'FW')[] = ['GK', 'DF', 'DF', 'DF', 'DF', 'MF', 'MF', 'MF', 'MF', 'FW', 'FW'];
+  
+  positions.forEach(pos => {
+    const playerOverall = teamOverall + Math.floor(Math.random() * 11) - 5;
+    squad.push({
+      id: Math.random().toString(36).substr(2, 9),
+      name: generatePlayerName(),
+      position: pos,
+      overall: playerOverall,
+      age: 18 + Math.floor(Math.random() * 18),
+      value: playerOverall * 1000000 + Math.floor(Math.random() * 5000000),
+      goals: 0,
+      assists: 0
+    });
+  });
+  
+  return squad;
+};
+
+export const COMPETITIONS: Competition[] = [
+  { id: 'br_a', name: 'Brasileirão Série A', type: 'LEAGUE', region: 'BRAZIL', tier: 1 },
+  { id: 'en_pl', name: 'Premier League', type: 'LEAGUE', region: 'EUROPE', tier: 1 },
+  { id: 'es_ll', name: 'La Liga', type: 'LEAGUE', region: 'EUROPE', tier: 1 },
+  { id: 'eu_cl', name: 'Champions League', type: 'LEAGUE', region: 'EUROPE', tier: 0 },
+  { id: 'sa_lib', name: 'Libertadores', type: 'LEAGUE', region: 'SOUTH_AMERICA', tier: 0 },
+  { id: 'sa_sud', name: 'Sul-Americana', type: 'LEAGUE', region: 'SOUTH_AMERICA', tier: 0 }
+];
+
+const TEAM_DATA = [
+  // Brasileirão
+  { name: "Flamengo", color: "#E30613", leagueId: 'br_a', overall: 82 },
+  { name: "Palmeiras", color: "#006437", leagueId: 'br_a', overall: 81 },
+  { name: "São Paulo", color: "#FE0000", leagueId: 'br_a', overall: 78 },
+  { name: "Corinthians", color: "#000000", leagueId: 'br_a', overall: 77 },
+  { name: "Grêmio", color: "#00ADEF", leagueId: 'br_a', overall: 76 },
+  { name: "Internacional", color: "#E30613", leagueId: 'br_a', overall: 76 },
+  { name: "Atlético-MG", color: "#000000", leagueId: 'br_a', overall: 79 },
+  { name: "Cruzeiro", color: "#005BAA", leagueId: 'br_a', overall: 75 },
+  { name: "Vasco", color: "#000000", leagueId: 'br_a', overall: 74 },
+  { name: "Fluminense", color: "#800000", leagueId: 'br_a', overall: 77 },
+  
+  // Premier League
+  { name: "Man City", color: "#6CABDD", leagueId: 'en_pl', overall: 88 },
+  { name: "Arsenal", color: "#EF0107", leagueId: 'en_pl', overall: 85 },
+  { name: "Liverpool", color: "#C8102E", leagueId: 'en_pl', overall: 86 },
+  { name: "Man United", color: "#DA291C", leagueId: 'en_pl', overall: 82 },
+  { name: "Chelsea", color: "#034694", leagueId: 'en_pl', overall: 81 },
+  { name: "Tottenham", color: "#132257", leagueId: 'en_pl', overall: 80 },
+  { name: "Newcastle", color: "#241F20", leagueId: 'en_pl', overall: 80 },
+  { name: "Aston Villa", color: "#95BFE5", leagueId: 'en_pl', overall: 79 },
+  
+  // La Liga
+  { name: "Real Madrid", color: "#FFFFFF", leagueId: 'es_ll', overall: 89 },
+  { name: "Barcelona", color: "#A50044", leagueId: 'es_ll', overall: 86 },
+  { name: "Atlético Madrid", color: "#CB3524", leagueId: 'es_ll', overall: 83 },
+  { name: "Real Sociedad", color: "#0067B1", leagueId: 'es_ll', overall: 80 },
+  { name: "Sevilla", color: "#F43333", leagueId: 'es_ll', overall: 79 },
+  { name: "Villarreal", color: "#FFE600", leagueId: 'es_ll', overall: 78 },
+  
+  // Champions League (Mixed Top Teams)
+  { name: "Bayern Munich", color: "#DC052D", leagueId: 'eu_cl', overall: 87 },
+  { name: "PSG", color: "#004170", leagueId: 'eu_cl', overall: 85 },
+  { name: "Inter Milan", color: "#0066B2", leagueId: 'eu_cl', overall: 84 },
+  { name: "AC Milan", color: "#FB090B", leagueId: 'eu_cl', overall: 82 },
+  { name: "Dortmund", color: "#FDE100", leagueId: 'eu_cl', overall: 81 },
+  { name: "Benfica", color: "#E83030", leagueId: 'eu_cl', overall: 80 },
+  
+  // Libertadores (Mixed Top SA Teams)
+  { name: "River Plate", color: "#FFFFFF", leagueId: 'sa_lib', overall: 80 },
+  { name: "Boca Juniors", color: "#0033A0", leagueId: 'sa_lib', overall: 78 },
+  { name: "Ind. del Valle", color: "#000000", leagueId: 'sa_lib', overall: 77 },
+  { name: "LDU Quito", color: "#FFFFFF", leagueId: 'sa_lib', overall: 76 },
+  { name: "Peñarol", color: "#FFD700", leagueId: 'sa_lib', overall: 75 },
+  { name: "Colo-Colo", color: "#FFFFFF", leagueId: 'sa_lib', overall: 74 },
+  
+  // Sul-Americana (Mixed SA Teams)
+  { name: "Fortaleza", color: "#005BAA", leagueId: 'sa_sud', overall: 76 },
+  { name: "Athletico-PR", color: "#E30613", leagueId: 'sa_sud', overall: 77 },
+  { name: "Racing", color: "#6CABDD", leagueId: 'sa_sud', overall: 78 },
+  { name: "Independiente", color: "#E30613", leagueId: 'sa_sud', overall: 77 },
+  { name: "LDU Quito", color: "#FFFFFF", leagueId: 'sa_sud', overall: 75 },
+  { name: "Peñarol", color: "#FFD700", leagueId: 'sa_sud', overall: 74 }
+];
+
+// Gera os times iniciais
+export const generateInitialTeams = (): Team[] => {
+  return TEAM_DATA.map((t, i) => {
+    const overall = t.overall + Math.floor(Math.random() * 5) - 2;
+    return {
+      id: `team-${i}`,
+      name: t.name,
+      leagueId: t.leagueId,
+      overall,
+      attack: overall + Math.floor(Math.random() * 5),
+      midfield: overall + Math.floor(Math.random() * 5),
+      defense: overall + Math.floor(Math.random() * 5),
+      players: generateSquad(overall),
+      points: 0,
+      played: 0,
+      won: 0,
+      drawn: 0,
+      lost: 0,
+      gf: 0,
+      ga: 0,
+      gd: 0,
+      budget: 50000000 + Math.floor(Math.random() * 50000000),
+      color: t.color
+    };
+  });
+};
+
+// Gera o calendário do campeonato (Round Robin) para cada liga
+export const generateSchedule = (teams: Team[]): Match[] => {
+  const allMatches: Match[] = [];
+  const leagues = Array.from(new Set(teams.map(t => t.leagueId)));
+
+  (leagues || []).forEach(leagueId => {
+    const leagueTeams = teams.filter(t => t.leagueId === leagueId);
+    const numTeams = leagueTeams.length;
+    if (numTeams < 2) return;
+
+    const numRounds = (numTeams - 1) * 2;
+    const matchesPerRound = numTeams / 2;
+    const teamIds = leagueTeams.map(t => t.id);
+
+    for (let round = 0; round < numRounds; round++) {
+      for (let i = 0; i < matchesPerRound; i++) {
+        const homeIdx = (round + i) % (numTeams - 1);
+        let awayIdx = (numTeams - 1 - i + round) % (numTeams - 1);
+
+        if (i === 0) awayIdx = numTeams - 1;
+
+        const homeTeamId = round % 2 === 0 ? teamIds[homeIdx] : teamIds[awayIdx];
+        const awayTeamId = round % 2 === 0 ? teamIds[awayIdx] : teamIds[homeIdx];
+
+        allMatches.push({
+          id: `match-${leagueId}-${round}-${i}`,
+          week: round + 1,
+          competitionId: leagueId,
+          homeTeamId,
+          awayTeamId,
+          homeScore: 0,
+          awayScore: 0,
+          played: false,
+          events: []
+        });
       }
     }
-    return goals;
+  });
+
+  return allMatches;
+};
+
+// Simula uma partida entre dois times
+export const simulateMatch = (home: Team, away: Team, week: number, competitionId: string): Match => {
+  const homeAdvantage = 5;
+  const homeStrength = home.overall + homeAdvantage;
+  const awayStrength = away.overall;
+
+  const totalStrength = homeStrength + awayStrength;
+  
+  // Determina número de gols (Poisson-ish)
+  const generateGols = (strength: number, opponentStrength: number) => {
+    const lambda = (strength / opponentStrength) * 1.5;
+    let L = Math.exp(-lambda);
+    let p = 1.0;
+    let k = 0;
+    do {
+      k++;
+      p *= Math.random();
+    } while (p > L);
+    return k - 1;
   };
 
-  const homeScore = simulateGoals(homeStrength, awayStrength);
-  const awayScore = simulateGoals(awayStrength, homeStrength);
+  const homeScore = generateGols(homeStrength, awayStrength);
+  const awayScore = generateGols(awayStrength, homeStrength);
 
   const events: MatchEvent[] = [];
-  // Generate some random goal events
-  for (let i = 0; i < homeScore; i++) {
-    const player = home.players[Math.floor(Math.random() * home.players.length)];
-    events.push({
-      minute: Math.floor(Math.random() * 90) + 1,
-      type: 'GOAL',
-      teamId: home.id,
-      playerName: player.name
-    });
-  }
-  for (let i = 0; i < awayScore; i++) {
-    const player = away.players[Math.floor(Math.random() * away.players.length)];
-    events.push({
-      minute: Math.floor(Math.random() * 90) + 1,
-      type: 'GOAL',
-      teamId: away.id,
-      playerName: player.name
-    });
-  }
 
-  events.sort((a, b) => a.minute - b.minute);
+  // Gera eventos de gols
+  const addGoalEvents = (score: number, team: Team) => {
+    for (let i = 0; i < score; i++) {
+      const scorers = team.players.filter(p => p.position !== 'GK');
+      const scorer = scorers[Math.floor(Math.random() * scorers.length)];
+      scorer.goals += 1;
+      
+      events.push({
+        minute: Math.floor(Math.random() * 90) + 1,
+        type: 'goal',
+        playerName: scorer.name,
+        teamId: team.id
+      });
+    }
+  };
+
+  addGoalEvents(homeScore, home);
+  addGoalEvents(awayScore, away);
 
   return {
-    id: `${home.id}-${away.id}-${week}`,
+    id: `match-${week}-${home.id}-${away.id}`,
+    week,
+    competitionId,
     homeTeamId: home.id,
     awayTeamId: away.id,
     homeScore,
     awayScore,
     played: true,
-    week,
-    events
+    events: events.sort((a, b) => a.minute - b.minute)
   };
 };
 
+// Atualiza a tabela de classificação
 export const updateStandings = (teams: Team[], match: Match): Team[] => {
   return teams.map(team => {
     if (team.id === match.homeTeamId) {
       const won = match.homeScore > match.awayScore;
       const drawn = match.homeScore === match.awayScore;
       const lost = match.homeScore < match.awayScore;
+
       return {
         ...team,
         played: team.played + 1,
@@ -78,10 +242,12 @@ export const updateStandings = (teams: Team[], match: Match): Team[] => {
         points: team.points + (won ? 3 : drawn ? 1 : 0)
       };
     }
+
     if (team.id === match.awayTeamId) {
       const won = match.awayScore > match.homeScore;
       const drawn = match.awayScore === match.homeScore;
       const lost = match.awayScore < match.homeScore;
+
       return {
         ...team,
         played: team.played + 1,
@@ -94,89 +260,37 @@ export const updateStandings = (teams: Team[], match: Match): Team[] => {
         points: team.points + (won ? 3 : drawn ? 1 : 0)
       };
     }
+
     return team;
   });
 };
 
-export const generateInitialTeams = (): Team[] => {
-  const teamNames = [
-    "Flamengo", "Palmeiras", "Atlético-MG", "São Paulo", "Fluminense",
-    "Grêmio", "Internacional", "Corinthians", "Fortaleza", "Athletico-PR",
-    "Bahia", "Cruzeiro", "Botafogo", "Vasco", "Bragantino",
-    "Cuiabá", "Vitória", "Criciúma", "Juventude", "Atlético-GO"
-  ];
-
-  const colors = [
-    "#E30613", "#006437", "#000000", "#FE0000", "#831D1C",
-    "#00AEEF", "#E30613", "#000000", "#004B93", "#E30613",
-    "#004B93", "#004B93", "#000000", "#000000", "#E30613",
-    "#006437", "#E30613", "#FFD700", "#006437", "#E30613"
-  ];
-
-  return teamNames.map((name, i) => {
-    const baseOvr = 70 + Math.floor(Math.random() * 15);
-    const players: Player[] = [];
-    const positions: ('GK' | 'DF' | 'MF' | 'FW')[] = ['GK', 'DF', 'DF', 'DF', 'DF', 'MF', 'MF', 'MF', 'FW', 'FW', 'FW'];
-    
-    positions.forEach((pos, j) => {
-      players.push({
-        id: `p-${i}-${j}`,
-        name: `Jogador ${i}-${j}`,
-        age: 18 + Math.floor(Math.random() * 15),
-        position: pos,
-        overall: baseOvr + Math.floor(Math.random() * 5) - 2,
-        nationality: "Brasil",
-        teamId: `t-${i}`,
+// Reseta os times para uma nova temporada
+export const resetTeamsForNewSeason = (teams: Team[]): Team[] => {
+  return teams.map(team => ({
+    ...team,
+    points: 0,
+    played: 0,
+    won: 0,
+    drawn: 0,
+    lost: 0,
+    gf: 0,
+    ga: 0,
+    gd: 0,
+    players: team.players.map(player => {
+      // Jogadores envelhecem e podem melhorar ou piorar levemente
+      const age = player.age + 1;
+      const performanceFactor = Math.floor(Math.random() * 5) - 2; // -2 a +2
+      const overall = Math.max(40, Math.min(99, player.overall + performanceFactor));
+      
+      return {
+        ...player,
+        age,
+        overall,
         goals: 0,
         assists: 0,
-        value: (baseOvr * baseOvr) * 1000
-      });
-    });
-
-    return {
-      id: `t-${i}`,
-      name,
-      overall: baseOvr,
-      attack: baseOvr + 2,
-      midfield: baseOvr,
-      defense: baseOvr - 2,
-      budget: 10000000,
-      points: 0,
-      played: 0,
-      won: 0,
-      drawn: 0,
-      lost: 0,
-      gf: 0,
-      ga: 0,
-      gd: 0,
-      players,
-      color: colors[i]
-    };
-  });
-};
-
-export const generateSchedule = (teams: Team[]): Match[] => {
-  const schedule: Match[] = [];
-  const numTeams = teams.length;
-  const numWeeks = (numTeams - 1) * 2;
-  
-  // Simple round-robin (simplified for now)
-  for (let week = 1; week <= numWeeks; week++) {
-    const weekTeams = [...teams];
-    while (weekTeams.length > 1) {
-      const home = weekTeams.shift()!;
-      const away = weekTeams.pop()!;
-      schedule.push({
-        id: `${home.id}-${away.id}-${week}`,
-        homeTeamId: home.id,
-        awayTeamId: away.id,
-        homeScore: 0,
-        awayScore: 0,
-        played: false,
-        week,
-        events: []
-      });
-    }
-  }
-  return schedule;
+        value: overall * 1000000 + Math.floor(Math.random() * 5000000)
+      };
+    })
+  }));
 };
