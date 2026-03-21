@@ -9,11 +9,12 @@ const generatePlayerName = () => {
 };
 
 // Gera um elenco inicial para um time
-const generateSquad = (teamOverall: number): Player[] => {
+const generateSquad = (teamOverall: number, playerCount: number = 11): Player[] => {
   const squad: Player[] = [];
-  const positions: ('GK' | 'DF' | 'MF' | 'FW')[] = ['GK', 'DF', 'DF', 'DF', 'DF', 'MF', 'MF', 'MF', 'MF', 'FW', 'FW'];
+  const basePositions: ('GK' | 'DF' | 'MF' | 'FW')[] = ['GK', 'DF', 'DF', 'DF', 'DF', 'MF', 'MF', 'MF', 'MF', 'FW', 'FW'];
   
-  positions.forEach(pos => {
+  for (let i = 0; i < playerCount; i++) {
+    const pos = basePositions[i % basePositions.length];
     const playerOverall = teamOverall + Math.floor(Math.random() * 11) - 5;
     squad.push({
       id: Math.random().toString(36).substr(2, 9),
@@ -25,15 +26,27 @@ const generateSquad = (teamOverall: number): Player[] => {
       goals: 0,
       assists: 0
     });
-  });
+  }
   
   return squad;
 };
 
 export const COMPETITIONS: Competition[] = [
-  { id: 'br_a', name: 'Brasileirão Série A', type: 'LEAGUE', region: 'BRAZIL', tier: 1 },
-  { id: 'en_pl', name: 'Premier League', type: 'LEAGUE', region: 'EUROPE', tier: 1 },
-  { id: 'es_ll', name: 'La Liga', type: 'LEAGUE', region: 'EUROPE', tier: 1 },
+  { 
+    id: 'br_a', name: 'Brasileirão Série A', type: 'LEAGUE', region: 'BRAZIL', tier: 1,
+    teamsCount: 20, relegationCount: 4, promotionCount: 0,
+    countryName: 'Brasil', countryFlag: 'https://flagcdn.com/br.svg'
+  },
+  { 
+    id: 'en_pl', name: 'Premier League', type: 'LEAGUE', region: 'EUROPE', tier: 1,
+    teamsCount: 20, relegationCount: 3, promotionCount: 0,
+    countryName: 'Inglaterra', countryFlag: 'https://flagcdn.com/gb-eng.svg'
+  },
+  { 
+    id: 'es_ll', name: 'La Liga', type: 'LEAGUE', region: 'EUROPE', tier: 1,
+    teamsCount: 20, relegationCount: 3, promotionCount: 0,
+    countryName: 'Espanha', countryFlag: 'https://flagcdn.com/es.svg'
+  },
   { id: 'eu_cl', name: 'Champions League', type: 'LEAGUE', region: 'EUROPE', tier: 0 },
   { id: 'sa_lib', name: 'Libertadores', type: 'LEAGUE', region: 'SOUTH_AMERICA', tier: 0 },
   { id: 'sa_sud', name: 'Sul-Americana', type: 'LEAGUE', region: 'SOUTH_AMERICA', tier: 0 }

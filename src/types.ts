@@ -6,6 +6,19 @@ export interface Competition {
   type: CompetitionType;
   region: 'BRAZIL' | 'EUROPE' | 'SOUTH_AMERICA' | 'WORLD';
   tier?: number;
+  logo?: string;
+  countryFlag?: string;
+  countryName?: string;
+  teamsCount?: number;
+  promotionCount?: number;
+  relegationCount?: number;
+  qualificationSpots?: {
+    competitionId: string;
+    spots: number;
+    startRank: number;
+  }[];
+  hasPlayoffs?: boolean;
+  playoffTeamsCount?: number;
 }
 
 export interface Player {
@@ -17,6 +30,7 @@ export interface Player {
   value: number;
   goals: number;
   assists: number;
+  photo?: string;
 }
 
 export interface Team {
@@ -38,6 +52,7 @@ export interface Team {
   gd: number;
   budget: number;
   color: string;
+  logo?: string;
   form: ('W' | 'D' | 'L')[];
 }
 

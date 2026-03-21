@@ -36,6 +36,7 @@ import { simulateMatch, updateStandings, generateInitialTeams, generateSchedule,
 import { useGameStore } from './gameStore';
 import { supabase } from './services/supabase';
 import { User } from '@supabase/supabase-js';
+import AdminPanel from './components/AdminPanel';
 
 export default function App() {
   const { 
@@ -59,10 +60,13 @@ export default function App() {
   const [lastMatchResult, setLastMatchResult] = useState<Match | null>(null);
   const [showMatchResult, setShowMatchResult] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [showAdminPanel, setShowAdminPanel] = useState(false);
   const [selectedCalendarMatch, setSelectedCalendarMatch] = useState<Match | null>(null);
   const [news, setNews] = useState<string[]>(["Bem-vindo ao BrasKick! O seu destino no futebol começa aqui."]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
   const [user, setUser] = useState<User | null>(null);
+  const isAdmin = user?.email === 'denilson.santos.dev21@gmail.com';
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
   const [isAuthLoading, setIsAuthLoading] = useState(true);
@@ -655,6 +659,15 @@ export default function App() {
                 <span className="font-display text-xl text-braskick-verde">R$ {(userTeam?.budget || 0).toLocaleString('pt-BR')}</span>
               </div>
             </div>
+            {isAdmin && (
+              <button 
+                onClick={() => setShowAdminPanel(true)}
+                className="w-full flex items-center justify-center gap-2 py-3 text-braskick-ouro hover:text-yellow-400 transition-colors font-display text-sm uppercase tracking-widest border border-braskick-ouro/20 rounded-xl mb-4"
+              >
+                <Shield className="w-4 h-4" />
+                PAINEL ADMIN
+              </button>
+            )}
             <button 
               onClick={handleLogout}
               className="w-full flex items-center justify-center gap-2 py-3 text-braskick-muted hover:text-red-400 transition-colors font-display text-sm uppercase tracking-widest"
@@ -682,8 +695,8 @@ export default function App() {
               <Menu className="w-7 h-7" />
             </button>
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl font-display text-white shadow-xl" style={{ backgroundColor: userTeam?.color }}>
-                {userTeam?.name.substring(0, 1)}
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl font-display text-white shadow-xl overflow-hidden" style={{ backgroundColor: userTeam?.color }}>
+                {userTeam?.logo ? <img src={userTeam.logo} alt="" className="w-full h-full object-contain" referrerPolicy="no-referrer" /> : userTeam?.name.substring(0, 1)}
               </div>
               <div>
                 <h2 className="font-display text-2xl leading-none">{userTeam?.name}</h2>
@@ -854,7 +867,20 @@ export default function App() {
                     <tbody>
                       {userTeam?.players.map(player => (
                         <tr key={player.id} className="border-b border-white/5 hover:bg-white/5 transition-colors group">
-                          <td className="p-5 font-display text-xl">{player.name}</td>
+                          <td className="p-5">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-full bg-braskick-noite3 border border-white/10 overflow-hidden flex-shrink-0">
+                                {player.photo ? (
+                                  <img src={player.photo} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center text-braskick-muted">
+                                    <Users className="w-5 h-5" />
+                                  </div>
+                                )}
+                              </div>
+                              <span className="font-display text-xl">{player.name}</span>
+                            </div>
+                          </td>
                           <td className="p-5 text-center">
                             <span className={`font-display text-sm px-3 py-1 rounded-full ${
                               player.position === 'GK' ? 'bg-braskick-ouro/10 text-braskick-ouro' :
@@ -944,10 +970,14 @@ export default function App() {
                             <td className="p-6">
                               <div className="flex items-center gap-4">
                                 <div 
-                                  className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shadow-sm border border-slate-100"
+                                  className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shadow-sm border border-slate-100 overflow-hidden"
                                   style={{ backgroundColor: team.color }}
                                 >
-                                  {team.name.substring(0, 1)}
+                                  {team.logo ? (
+                                    <img src={team.logo} alt="" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+                                  ) : (
+                                    team.name.substring(0, 1)
+                                  )}
                                 </div>
                                 <span className={`text-lg font-medium ${
                                   team.id === gameState.userTeamId ? 'text-emerald-600' : 'text-slate-700'
@@ -1483,6 +1513,8 @@ export default function App() {
             </motion.div>
           </motion.div>
         )}
+
+        {showAdminPanel && <AdminPanel onClose={() => setShowAdminPanel(false)} />}
       </AnimatePresence>
     </div>
   );
@@ -1526,8 +1558,8 @@ function TeamDisplay({ team }: { team: Team | undefined }) {
   if (!team) return null;
   return (
     <div className="text-center group">
-      <div className="w-20 h-20 rounded-[1.5rem] mx-auto mb-4 flex items-center justify-center text-4xl font-display text-white shadow-2xl transition-transform group-hover:scale-110" style={{ backgroundColor: team.color }}>
-        {team.name.substring(0, 1)}
+      <div className="w-20 h-20 rounded-[1.5rem] mx-auto mb-4 flex items-center justify-center text-4xl font-display text-white shadow-2xl transition-transform group-hover:scale-110 overflow-hidden" style={{ backgroundColor: team.color }}>
+        {team.logo ? <img src={team.logo} alt="" className="w-full h-full object-contain" referrerPolicy="no-referrer" /> : team.name.substring(0, 1)}
       </div>
       <div className="font-display text-xl uppercase tracking-wider">{team.name}</div>
     </div>

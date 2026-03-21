@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { GameState, Team, Match, Player } from './types';
+import { GameState, Team, Match, Player, Competition } from './types';
 
 interface GameStore {
   gameState: GameState | null;
@@ -18,6 +18,13 @@ interface GameStore {
   buyPlayer: (player: Player, fromTeamId: string, toTeamId: string, price: number) => boolean;
   sellPlayer: (player: Player, fromTeamId: string, price: number) => void;
   resetGame: () => void;
+  
+  // Admin Actions
+  updateCompetition: (competition: Competition) => void;
+  addCompetition: (competition: Competition) => void;
+  addTeam: (team: Team) => void;
+  updateTeam: (team: Team) => void;
+  updatePlayer: (teamId: string, player: Player) => void;
 }
 
 export const useGameStore = create<GameStore>()(
@@ -55,7 +62,7 @@ export const useGameStore = create<GameStore>()(
           currentWeek: 1,
           totalWeeks: Math.max(...newSchedule.map(m => m.week)),
           season: state.gameState.season + 1,
-          history: [] // Limpa o histórico da temporada anterior para performance ou mantém? Vamos limpar por enquanto.
+          history: [] 
         } : null
       })),
 
@@ -78,7 +85,6 @@ export const useGameStore = create<GameStore>()(
           }
           if (team.id === toTeamId) {
             const newPlayers = [...team.players, player];
-            // Recalcular stats do time
             const avgOverall = Math.round(newPlayers.reduce((acc, p) => acc + p.overall, 0) / newPlayers.length);
             const attack = Math.round(newPlayers.filter(p => p.position === 'FW' || p.position === 'MF').reduce((acc, p) => acc + p.overall, 0) / Math.max(1, newPlayers.filter(p => p.position === 'FW' || p.position === 'MF').length));
             const defense = Math.round(newPlayers.filter(p => p.position === 'DF' || p.position === 'GK').reduce((acc, p) => acc + p.overall, 0) / Math.max(1, newPlayers.filter(p => p.position === 'DF' || p.position === 'GK').length));
@@ -106,7 +112,6 @@ export const useGameStore = create<GameStore>()(
         const updatedTeams = gameState.teams.map(team => {
           if (team.id === fromTeamId) {
             const newPlayers = team.players.filter(p => p.id !== player.id);
-            // Recalcular stats do time
             const avgOverall = newPlayers.length > 0 ? Math.round(newPlayers.reduce((acc, p) => acc + p.overall, 0) / newPlayers.length) : 0;
             
             return {
@@ -130,6 +135,49 @@ export const useGameStore = create<GameStore>()(
       },
 
       resetGame: () => set({ gameState: null, moedas: 500, dinheiroJogo: 0 }),
+
+      updateCompetition: (competition) => set((state) => ({
+        gameState: state.gameState ? {
+          ...state.gameState,
+          competitions: state.gameState.competitions.map(c => c.id === competition.id ? competition : c)
+        } : null
+      })),
+
+      addCompetition: (competition) => set((state) => ({
+        gameState: state.gameState ? {
+          ...state.gameState,
+          competitions: [...state.gameState.competitions, competition]
+        } : null
+      })),
+
+      addTeam: (team) => set((state) => ({
+        gameState: state.gameState ? {
+          ...state.gameState,
+          teams: [...state.gameState.teams, team]
+        } : null
+      })),
+
+      updateTeam: (team) => set((state) => ({
+        gameState: state.gameState ? {
+          ...state.gameState,
+          teams: state.gameState.teams.map(t => t.id === team.id ? team : t)
+        } : null
+      })),
+
+      updatePlayer: (teamId, player) => set((state) => ({
+        gameState: state.gameState ? {
+          ...state.gameState,
+          teams: state.gameState.teams.map(team => {
+            if (team.id === teamId) {
+              return {
+                ...team,
+                players: team.players.map(p => p.id === player.id ? player : p)
+              };
+            }
+            return team;
+          })
+        } : null
+      })),
     }),
     {
       name: 'braskick-storage',
