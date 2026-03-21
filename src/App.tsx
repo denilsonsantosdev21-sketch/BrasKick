@@ -33,7 +33,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Team, Match, Player, GameState } from './types';
-import { simulateMatch, updateStandings, generateInitialTeams, generateSchedule, COMPETITIONS, resetTeamsForNewSeason } from './gameEngine';
+import { simulateMatch, updateStandings, generateInitialTeams, generateSchedule, COMPETITIONS, resetTeamsForNewSeason, generateNextTournamentRound } from './gameEngine';
 import { useGameStore } from './gameStore';
 import { supabase } from './services/supabase';
 import { User } from '@supabase/supabase-js';
@@ -483,15 +483,38 @@ export default function App() {
       setShowMatchResult(true);
 
       // Atualiza o estado global
-      const updatedMatches = (gameState.matches || []).map(m => {
+      let updatedMatches = (gameState.matches || []).map(m => {
         const sim = simulatedMatches.find(sm => sm.id === m.id);
         return sim ? { ...sim, played: true } : m;
+      });
+
+      // Verifica se há torneios que precisam de novas rodadas
+      let finalTotalWeeks = gameState.totalWeeks;
+      gameState.competitions.forEach(comp => {
+        if (comp.type === 'TOURNAMENT') {
+          const tournamentMatches = simulatedMatches.filter(m => m.competitionId === comp.id);
+          // Se houve partidas deste torneio nesta semana
+          if (tournamentMatches.length > 0) {
+            // Se for a última rodada gerada para este torneio e ainda não é a final
+            const compMatches = updatedMatches.filter(m => m.competitionId === comp.id);
+            const maxWeekForComp = Math.max(...compMatches.map(m => m.week), 0);
+            
+            if (gameState.currentWeek === maxWeekForComp && tournamentMatches.length > 1) {
+              const nextRoundMatches = generateNextTournamentRound(tournamentMatches, comp.id, gameState.currentWeek);
+              if (nextRoundMatches.length > 0) {
+                updatedMatches = [...updatedMatches, ...nextRoundMatches];
+                finalTotalWeeks = Math.max(finalTotalWeeks, ...nextRoundMatches.map(m => m.week));
+              }
+            }
+          }
+        }
       });
 
       const updatedState: GameState = {
         ...gameState,
         teams: updatedTeams,
         currentWeek: gameState.currentWeek + 1,
+        totalWeeks: finalTotalWeeks,
         matches: updatedMatches,
         history: [...simulatedMatches, ...gameState.history]
       };

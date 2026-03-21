@@ -17,6 +17,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { Competition, Team, Player } from '../types';
 import { useGameStore } from '../gameStore';
+import { generateUUID } from '../gameEngine';
 
 interface AdminPanelProps {
   onClose: () => void;
@@ -43,7 +44,7 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
     if (editingItem.id) {
       updateCompetition(editingItem);
     } else {
-      addCompetition({ ...editingItem, id: `comp-${Date.now()}` });
+      addCompetition({ ...editingItem, id: generateUUID() });
     }
     setEditingItem(null);
   };
@@ -55,7 +56,7 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
     } else {
       addTeam({ 
         ...editingItem, 
-        id: `team-${Date.now()}`,
+        id: generateUUID(),
         points: 0, played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0, gd: 0, form: []
       });
     }
@@ -65,7 +66,20 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
   const handleSavePlayer = (e: React.FormEvent) => {
     e.preventDefault();
     if (selectedTeamId) {
-      updatePlayer(selectedTeamId, editingItem);
+      if (editingItem.id) {
+        updatePlayer(selectedTeamId, editingItem);
+      } else {
+        // Adicionar novo jogador
+        const newPlayer = { ...editingItem, id: generateUUID() };
+        const team = teams.find(t => t.id === selectedTeamId);
+        if (team) {
+          const updatedTeam = {
+            ...team,
+            players: [...team.players, newPlayer]
+          };
+          updateTeam(updatedTeam);
+        }
+      }
     }
     setEditingItem(null);
   };
@@ -279,12 +293,24 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                             <img src={comp?.countryFlag} alt="" className="w-10 h-6 object-cover rounded shadow-sm" />
                             <div className="font-display text-lg leading-none">{countryName}</div>
                           </div>
-                          <button 
-                            onClick={() => setEditingItem(comp)}
-                            className="p-2 hover:bg-white/5 rounded-lg transition-colors text-braskick-muted hover:text-white"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
+                          <div className="flex items-center gap-1">
+                            <button 
+                              onClick={() => setEditingItem(comp)}
+                              className="p-2 hover:bg-white/5 rounded-lg transition-colors text-braskick-muted hover:text-white"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                            <button 
+                              onClick={() => {
+                                if (window.confirm(`Excluir todas as ligas de ${countryName}?`)) {
+                                  competitions.filter(c => c.countryName === countryName).forEach(c => deleteCompetition(c.id));
+                                }
+                              }}
+                              className="p-2 hover:bg-red-500/10 rounded-lg transition-colors text-braskick-muted hover:text-red-400"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
                         </div>
                         <button 
                           onClick={() => { 
@@ -331,6 +357,12 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                       </div>
                     </div>
                   </div>
+                  <button 
+                    onClick={() => setEditingItem({ name: '', position: 'FW', overall: 70, age: 20, value: 1000000, goals: 0, assists: 0 })}
+                    className="braskick-button-primary flex items-center gap-2"
+                  >
+                    <Plus className="w-5 h-5" /> NOVO JOGADOR
+                  </button>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
