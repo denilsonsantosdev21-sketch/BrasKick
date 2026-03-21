@@ -26,7 +26,9 @@ import {
   CheckCircle2,
   XCircle,
   MinusCircle,
-  ChevronDown
+  ChevronDown,
+  RotateCcw,
+  AlertTriangle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Team, Match, Player, GameState } from './types';
@@ -56,6 +58,7 @@ export default function App() {
   const [isSimulating, setIsSimulating] = useState(false);
   const [lastMatchResult, setLastMatchResult] = useState<Match | null>(null);
   const [showMatchResult, setShowMatchResult] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [selectedCalendarMatch, setSelectedCalendarMatch] = useState<Match | null>(null);
   const [news, setNews] = useState<string[]>(["Bem-vindo ao BrasKick! O seu destino no futebol começa aqui."]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -660,10 +663,10 @@ export default function App() {
               SAIR DA CONTA
             </button>
             <button 
-              onClick={resetGame}
+              onClick={() => setShowResetConfirm(true)}
               className="w-full flex items-center justify-center gap-2 py-3 text-braskick-muted hover:text-red-400 transition-colors font-display text-sm uppercase tracking-widest"
             >
-              <Settings className="w-4 h-4" />
+              <RotateCcw className="w-4 h-4" />
               REINICIAR CARREIRA
             </button>
           </div>
@@ -888,12 +891,24 @@ export default function App() {
                   <div className="p-8 border-b border-slate-100">
                     <h2 className="text-3xl font-semibold text-slate-800 mb-6">Classificação</h2>
                     
-                    <div className="bg-slate-50 rounded-xl p-4 inline-flex flex-col gap-1 border border-slate-200 min-w-[180px]">
-                      <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Temporada</span>
-                      <button className="flex items-center justify-between w-full text-left font-bold text-slate-800">
-                        <span>2026</span>
-                        <ChevronDown className="w-5 h-5 text-slate-400" />
-                      </button>
+                    <div className="flex flex-wrap gap-4">
+                      <div className="bg-slate-50 rounded-xl p-4 flex flex-col gap-1 border border-slate-200 min-w-[200px]">
+                        <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Competição</span>
+                        <select 
+                          value={activeCompetitionId}
+                          onChange={(e) => setActiveCompetitionId(e.target.value)}
+                          className="bg-transparent font-bold text-slate-800 outline-none cursor-pointer"
+                        >
+                          {COMPETITIONS.map(comp => (
+                            <option key={comp.id} value={comp.id}>{comp.name}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="bg-slate-50 rounded-xl p-4 flex flex-col gap-1 border border-slate-200 min-w-[120px]">
+                        <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Temporada</span>
+                        <div className="font-bold text-slate-800">2026</div>
+                      </div>
                     </div>
                   </div>
 
@@ -1420,6 +1435,51 @@ export default function App() {
               >
                 CONTINUAR
               </button>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {showResetConfirm && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-braskick-noite/95 backdrop-blur-md"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 30 }}
+              animate={{ scale: 1, y: 0 }}
+              className="bg-braskick-noite2 border border-red-500/20 rounded-[2.5rem] p-10 max-w-md w-full shadow-[0_0_100px_-20px_rgba(239,68,68,0.2)] relative overflow-hidden text-center"
+            >
+              <div className="absolute top-0 left-0 w-full h-2 bg-red-500" />
+              
+              <div className="mb-8 inline-flex items-center justify-center w-20 h-20 bg-red-500/10 border border-red-500/20 rounded-3xl">
+                <AlertTriangle className="w-10 h-10 text-red-500" />
+              </div>
+
+              <h2 className="font-display text-3xl mb-4 uppercase tracking-widest">REINICIAR CARREIRA?</h2>
+              <p className="text-braskick-muted text-sm font-body uppercase tracking-widest leading-relaxed mb-10">
+                VOCÊ PERDERÁ TODO O SEU PROGRESSO ATUAL, INCLUINDO TÍTULOS, MOEDAS E SEU ELENCO. ESTA AÇÃO NÃO PODE SER DESFEITA.
+              </p>
+
+              <div className="grid grid-cols-2 gap-4">
+                <button 
+                  onClick={() => setShowResetConfirm(false)}
+                  className="py-4 bg-white/5 hover:bg-white/10 text-white font-display text-xl uppercase tracking-widest rounded-2xl transition-all"
+                >
+                  CANCELAR
+                </button>
+                <button 
+                  onClick={() => {
+                    resetGame();
+                    setShowResetConfirm(false);
+                    setActiveTab('dashboard');
+                  }}
+                  className="py-4 bg-red-600 hover:bg-red-500 text-white font-display text-xl uppercase tracking-widest rounded-2xl shadow-xl shadow-red-500/20 transition-all active:scale-95"
+                >
+                  REINICIAR
+                </button>
+              </div>
             </motion.div>
           </motion.div>
         )}

@@ -55,12 +55,26 @@ const TEAM_DATA = [
   { name: "Santos", color: "#000000", leagueId: 'br_a', overall: 75 },
   { name: "Bahia", color: "#0000FF", leagueId: 'br_a', overall: 74 },
   { name: "Fortaleza", color: "#0000FF", leagueId: 'br_a', overall: 76 },
-  { name: "Athletico-PR", color: "#FF0000", leagueId: 'br_a', overall: 77 },
+  { name: "Athletico Paranaense", color: "#FF0000", leagueId: 'br_a', overall: 77 },
   { name: "Cuiabá", color: "#006437", leagueId: 'br_a', overall: 72 },
   { name: "Coritiba", color: "#006437", leagueId: 'br_a', overall: 71 },
   { name: "Goiás", color: "#006437", leagueId: 'br_a', overall: 71 },
   { name: "Bragantino", color: "#FFFFFF", leagueId: 'br_a', overall: 77 },
   { name: "Vitória", color: "#FF0000", leagueId: 'br_a', overall: 72 },
+  { name: "Juventude", color: "#006437", leagueId: 'br_a', overall: 70 },
+  { name: "Atlético-GO", color: "#FF0000", leagueId: 'br_a', overall: 71 },
+  { name: "Criciúma", color: "#FFFF00", leagueId: 'br_a', overall: 70 },
+  { name: "Sport", color: "#FF0000", leagueId: 'br_a', overall: 73 },
+  { name: "Ceará", color: "#000000", leagueId: 'br_a', overall: 72 },
+  { name: "Avaí", color: "#0000FF", leagueId: 'br_a', overall: 69 },
+  { name: "Ponte Preta", color: "#FFFFFF", leagueId: 'br_a', overall: 68 },
+  { name: "Guarani", color: "#006437", leagueId: 'br_a', overall: 68 },
+  { name: "Chapecoense", color: "#006437", leagueId: 'br_a', overall: 69 },
+  { name: "Mirassol", color: "#FFFF00", leagueId: 'br_a', overall: 68 },
+  { name: "Remo", color: "#000080", leagueId: 'br_a', overall: 67 },
+  { name: "Paysandu", color: "#00BFFF", leagueId: 'br_a', overall: 68 },
+  { name: "Novorizontino", color: "#FFFF00", leagueId: 'br_a', overall: 70 },
+  { name: "Vila Nova", color: "#FF0000", leagueId: 'br_a', overall: 69 },
   
   // Premier League (20 times)
   { name: "Man City", color: "#6CABDD", leagueId: 'en_pl', overall: 88 },
@@ -114,7 +128,17 @@ const TEAM_DATA = [
   { name: "Peñarol", color: "#FFD700", leagueId: 'sa_lib', overall: 75 },
   { name: "Colo-Colo", color: "#FFFFFF", leagueId: 'sa_lib', overall: 74 },
   { name: "Nacional", color: "#FFFFFF", leagueId: 'sa_lib', overall: 75 },
-  { name: "Olimpia", color: "#000000", leagueId: 'sa_lib', overall: 74 }
+  { name: "Olimpia", color: "#000000", leagueId: 'sa_lib', overall: 74 },
+  
+  // Sul-Americana (Mixed SA Teams)
+  { name: "Estudiantes", color: "#FF0000", leagueId: 'sa_sud', overall: 76 },
+  { name: "Racing", color: "#87CEEB", leagueId: 'sa_sud', overall: 77 },
+  { name: "Lanús", color: "#800000", leagueId: 'sa_sud', overall: 74 },
+  { name: "Cerro Porteño", color: "#0000FF", leagueId: 'sa_sud', overall: 73 },
+  { name: "Barcelona SC", color: "#FFFF00", leagueId: 'sa_sud', overall: 72 },
+  { name: "Millonarios", color: "#0000FF", leagueId: 'sa_sud', overall: 71 },
+  { name: "Atlético Nacional", color: "#008000", leagueId: 'sa_sud', overall: 73 },
+  { name: "Bolívar", color: "#87CEEB", leagueId: 'sa_sud', overall: 70 }
 ];
 
 // Gera os times iniciais
@@ -151,10 +175,37 @@ export const generateSchedule = (teams: Team[]): Match[] => {
   const leagues = Array.from(new Set(teams.map(t => t.leagueId)));
 
   (leagues || []).forEach(leagueId => {
-    const leagueTeams = teams.filter(t => t.leagueId === leagueId);
-    const numTeams = leagueTeams.length;
-    if (numTeams < 2) return;
+    const leagueTeams = [...teams.filter(t => t.leagueId === leagueId)];
+    
+    // Se o número de times for ímpar, adiciona um time "Folga" (Bye)
+    // Para simplificar, vamos apenas garantir que o algoritmo não quebre
+    // e que todos joguem contra todos.
+    if (leagueTeams.length % 2 !== 0) {
+      // Adiciona um time fantasma para balancear o Round Robin
+      leagueTeams.push({
+        id: 'bye',
+        name: 'Folga',
+        leagueId: leagueId,
+        overall: 0,
+        attack: 0,
+        midfield: 0,
+        defense: 0,
+        players: [],
+        points: 0,
+        played: 0,
+        won: 0,
+        drawn: 0,
+        lost: 0,
+        gf: 0,
+        ga: 0,
+        gd: 0,
+        form: [],
+        budget: 0,
+        color: '#000000'
+      });
+    }
 
+    const numTeams = leagueTeams.length;
     const numRounds = (numTeams - 1) * 2;
     const matchesPerRound = numTeams / 2;
     const teamIds = leagueTeams.map(t => t.id);
@@ -169,17 +220,20 @@ export const generateSchedule = (teams: Team[]): Match[] => {
         const homeTeamId = round % 2 === 0 ? teamIds[homeIdx] : teamIds[awayIdx];
         const awayTeamId = round % 2 === 0 ? teamIds[awayIdx] : teamIds[homeIdx];
 
-        allMatches.push({
-          id: `match-${leagueId}-${round}-${i}`,
-          week: round + 1,
-          competitionId: leagueId,
-          homeTeamId,
-          awayTeamId,
-          homeScore: 0,
-          awayScore: 0,
-          played: false,
-          events: []
-        });
+        // Não adiciona partidas contra o time de "Folga"
+        if (homeTeamId !== 'bye' && awayTeamId !== 'bye') {
+          allMatches.push({
+            id: `match-${leagueId}-${round}-${i}`,
+            week: round + 1,
+            competitionId: leagueId,
+            homeTeamId,
+            awayTeamId,
+            homeScore: 0,
+            awayScore: 0,
+            played: false,
+            events: []
+          });
+        }
       }
     }
   });
