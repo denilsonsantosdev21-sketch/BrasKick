@@ -36,7 +36,7 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
   if (!gameState) return null;
 
   const competitions = gameState.competitions;
-  const teams = gameState.teams.filter(t => !selectedCompId || t.leagueId === selectedCompId);
+  const teams = (gameState.teams || []).filter(t => t && (!selectedCompId || t.leagueId === selectedCompId));
   const selectedTeam = gameState.teams.find(t => t.id === selectedTeamId);
   const players = selectedTeam?.players || [];
 

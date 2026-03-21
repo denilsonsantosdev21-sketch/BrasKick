@@ -160,7 +160,7 @@ export default function App() {
       // 2. Sincronizar Times
       const { error: teamsError } = await supabase
         .from('teams')
-        .upsert(gameState.teams.map(t => ({
+        .upsert((gameState.teams || []).filter(t => !!t).map(t => ({
           id: t.id,
           competition_id: t.leagueId,
           name: t.name,
@@ -327,13 +327,12 @@ export default function App() {
   }, [gameState]);
 
   const allStandings = useMemo(() => {
-    if (!gameState) return {};
+    if (!gameState || !gameState.teams) return {};
     const result: Record<string, Team[]> = {};
     const competitions = gameState.competitions || COMPETITIONS || [];
     competitions.forEach(comp => {
-      if (!gameState.teams) return;
       result[comp.id] = [...gameState.teams]
-        .filter(t => t.leagueId === comp.id)
+        .filter(t => t && t.leagueId === comp.id)
         .sort((a, b) => {
           if (b.points !== a.points) return b.points - a.points;
           if (b.gd !== a.gd) return b.gd - a.gd;
@@ -350,7 +349,7 @@ export default function App() {
   const userLeagueStandings = useMemo(() => {
     if (!gameState || !userTeam || !gameState.teams) return [];
     return [...gameState.teams]
-      .filter(t => t.leagueId === userTeam.leagueId)
+      .filter(t => t && t.leagueId === userTeam.leagueId)
       .sort((a, b) => {
         if (b.points !== a.points) return b.points - a.points;
         if (b.gd !== a.gd) return b.gd - a.gd;
@@ -359,10 +358,10 @@ export default function App() {
   }, [gameState, userTeam]);
 
   const marketPlayers = useMemo(() => {
-    if (!gameState) return [];
+    if (!gameState || !gameState.teams) return [];
     const allPlayers: { player: Player, team: Team }[] = [];
     gameState.teams.forEach(team => {
-      if (team.id !== gameState.userTeamId) {
+      if (team && team.id !== gameState.userTeamId) {
         team.players.forEach(player => {
           allPlayers.push({ player, team });
         });
@@ -918,7 +917,8 @@ export default function App() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {upcomingMatches.slice(1).map((match, i) => {
                         const isHome = match.homeTeamId === gameState.userTeamId;
-                        const opponent = gameState.teams.find(t => t.id === (isHome ? match.awayTeamId : match.homeTeamId))!;
+                        const opponent = gameState.teams.find(t => t.id === (isHome ? match.awayTeamId : match.homeTeamId));
+                        if (!opponent) return null;
                         return (
                           <div key={i} className="flex items-center justify-between p-4 rounded-xl bg-braskick-noite/50 border border-white/5 hover:border-white/10 transition-all">
                             <div className="flex items-center gap-4">
@@ -1554,10 +1554,10 @@ export default function App() {
                 <div className="font-display text-xl text-braskick-muted mb-6 tracking-[0.3em]">RESULTADO DA RODADA {gameState.currentWeek - 1}</div>
                 <div className="flex items-center justify-around py-8 bg-braskick-noite/50 rounded-[2rem] border border-white/5">
                   <div className="text-center w-32">
-                    <div className="w-20 h-20 rounded-[1.5rem] mx-auto mb-4 flex items-center justify-center text-4xl font-display text-white shadow-2xl" style={{ backgroundColor: gameState.teams.find(t => t.id === lastMatchResult.homeTeamId)?.color }}>
-                      {gameState.teams.find(t => t.id === lastMatchResult.homeTeamId)?.name.substring(0, 1)}
+                    <div className="w-20 h-20 rounded-[1.5rem] mx-auto mb-4 flex items-center justify-center text-4xl font-display text-white shadow-2xl" style={{ backgroundColor: gameState.teams.find(t => t.id === lastMatchResult.homeTeamId)?.color || '#333' }}>
+                      {gameState.teams.find(t => t.id === lastMatchResult.homeTeamId)?.name?.substring(0, 1) || '?'}
                     </div>
-                    <div className="font-display text-xl uppercase tracking-wider truncate">{gameState.teams.find(t => t.id === lastMatchResult.homeTeamId)?.name}</div>
+                    <div className="font-display text-xl uppercase tracking-wider truncate">{gameState.teams.find(t => t.id === lastMatchResult.homeTeamId)?.name || 'Time Excluído'}</div>
                   </div>
                   <div className="font-display text-7xl italic flex items-center gap-6">
                     <span className={lastMatchResult.homeScore > lastMatchResult.awayScore ? 'text-white' : 'text-braskick-muted'}>{lastMatchResult.homeScore}</span>
@@ -1565,10 +1565,10 @@ export default function App() {
                     <span className={lastMatchResult.awayScore > lastMatchResult.homeScore ? 'text-white' : 'text-braskick-muted'}>{lastMatchResult.awayScore}</span>
                   </div>
                   <div className="text-center w-32">
-                    <div className="w-20 h-20 rounded-[1.5rem] mx-auto mb-4 flex items-center justify-center text-4xl font-display text-white shadow-2xl" style={{ backgroundColor: gameState.teams.find(t => t.id === lastMatchResult.awayTeamId)?.color }}>
-                      {gameState.teams.find(t => t.id === lastMatchResult.awayTeamId)?.name.substring(0, 1)}
+                    <div className="w-20 h-20 rounded-[1.5rem] mx-auto mb-4 flex items-center justify-center text-4xl font-display text-white shadow-2xl" style={{ backgroundColor: gameState.teams.find(t => t.id === lastMatchResult.awayTeamId)?.color || '#333' }}>
+                      {gameState.teams.find(t => t.id === lastMatchResult.awayTeamId)?.name?.substring(0, 1) || '?'}
                     </div>
-                    <div className="font-display text-xl uppercase tracking-wider truncate">{gameState.teams.find(t => t.id === lastMatchResult.awayTeamId)?.name}</div>
+                    <div className="font-display text-xl uppercase tracking-wider truncate">{gameState.teams.find(t => t.id === lastMatchResult.awayTeamId)?.name || 'Time Excluído'}</div>
                   </div>
                 </div>
               </div>
