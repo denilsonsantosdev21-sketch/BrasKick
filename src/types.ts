@@ -28,6 +28,9 @@ export interface Player {
   goals: number;
   assists: number;
   photo?: string;
+  nationality?: string;
+  isInjured?: boolean;
+  isSuspended?: boolean;
 }
 
 export interface Team {
@@ -82,4 +85,5 @@ export interface GameState {
   season: number;
   matches: Match[];
   history: Match[];
+  coins: number;
 }

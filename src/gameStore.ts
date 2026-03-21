@@ -27,6 +27,7 @@ interface GameStore {
   updateTeam: (team: Team) => void;
   deleteTeam: (id: string) => void;
   updatePlayer: (teamId: string, player: Player) => void;
+  convertCoinsToMoney: () => boolean;
 }
 
 export const useGameStore = create<GameStore>()(
@@ -133,6 +134,25 @@ export const useGameStore = create<GameStore>()(
         const { moedas } = get();
         if (moedas < n) return false;
         set({ moedas: moedas - n });
+        return true;
+      },
+
+      convertCoinsToMoney: () => {
+        const { moedas, gameState } = get();
+        if (moedas <= 0 || !gameState) return false;
+        
+        const moneyToAdd = moedas * 5;
+        const updatedTeams = gameState.teams.map(team => {
+          if (team.id === gameState.userTeamId) {
+            return { ...team, budget: team.budget + moneyToAdd };
+          }
+          return team;
+        });
+
+        set({ 
+          moedas: 0, 
+          gameState: { ...gameState, teams: updatedTeams } 
+        });
         return true;
       },
 

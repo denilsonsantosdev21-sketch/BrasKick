@@ -54,7 +54,7 @@ export default function App() {
   } = useGameStore();
 
   const [activeTab, setActiveTab] = useState<'dashboard' | 'squad' | 'league' | 'market' | 'history' | 'fixtures'>('dashboard');
-  const [activeCompetitionId, setActiveCompetitionId] = useState<string>('br_a');
+  const [activeCompetitionId, setActiveCompetitionId] = useState<string>('f9e8d7c6-b5a4-4321-8765-432109876543');
   const [searchTerm, setSearchTerm] = useState('');
   const [marketFilter, setMarketFilter] = useState<'all' | 'GK' | 'DF' | 'MF' | 'FW'>('all');
   const [isSimulating, setIsSimulating] = useState(false);
@@ -768,6 +768,13 @@ export default function App() {
           </nav>
 
           <div className="mt-auto pt-6 border-t border-braskick-noite3">
+            <button 
+              onClick={() => adicionarMoedas(100)}
+              className="w-full mb-4 py-3 bg-braskick-ouro/10 border border-braskick-ouro/20 rounded-xl text-braskick-ouro hover:bg-braskick-ouro/20 transition-all font-display text-xs uppercase tracking-widest flex items-center justify-center gap-2"
+            >
+              <Coins className="w-4 h-4" />
+              Ganhar Moedas
+            </button>
             <div className="bg-braskick-noite3 rounded-2xl p-4 border border-white/5 mb-4">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2 text-braskick-muted">
@@ -844,6 +851,19 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-4">
+            <div className="hidden md:flex items-center bg-braskick-noite3/50 rounded-2xl p-1 border border-white/5">
+              <div className="px-4 py-2 text-[10px] font-bold text-braskick-muted uppercase tracking-widest border-r border-white/5">Temporada</div>
+              <select 
+                value={gameState?.season || 1}
+                className="bg-transparent px-4 py-2 font-display text-lg text-braskick-ouro outline-none cursor-pointer"
+                onChange={() => {}} // Lógica para ver temporadas passadas se implementada no futuro
+              >
+                {Array.from({ length: gameState?.season || 1 }, (_, i) => i + 1).map(s => (
+                  <option key={s} value={s} className="bg-braskick-noite2">Temporada {s}</option>
+                ))}
+              </select>
+            </div>
+
             {gameState && gameState.currentWeek > gameState.totalWeeks ? (
               <button 
                 onClick={handleNextSeason}
@@ -879,10 +899,10 @@ export default function App() {
                 {/* Main Stats */}
                 <div className="lg:col-span-2 space-y-8">
                   <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                    <StatCard label="Temporada" value={gameState?.season || 1} icon={<Calendar className="w-6 h-6 text-braskick-verde" />} />
                     <StatCard label="Posição" value={`${userLeagueStandings.findIndex(t => t.id === gameState.userTeamId) + 1}º`} icon={<Trophy className="w-6 h-6 text-braskick-ouro" />} />
                     <StatCard label="Pontos" value={userTeam?.points || 0} icon={<BarChart3 className="w-6 h-6 text-braskick-azul" />} />
                     <StatCard label="Vitórias" value={userTeam?.won || 0} icon={<ArrowUpRight className="w-6 h-6 text-braskick-verde" />} />
+                    <StatCard label="Empates" value={userTeam?.drawn || 0} icon={<MinusCircle className="w-6 h-6 text-braskick-muted" />} />
                     <StatCard label="Derrotas" value={userTeam?.lost || 0} icon={<ArrowDownRight className="w-6 h-6 text-red-500" />} />
                   </div>
 
@@ -908,25 +928,30 @@ export default function App() {
                     )}
                   </div>
 
-                  {/* Upcoming Schedule */}
+                  {/* Monthly Calendar Sequence */}
                   <div className="braskick-card">
                     <h3 className="text-sm font-bold uppercase tracking-widest text-braskick-muted flex items-center gap-2 mb-6">
-                      <HistoryIcon className="w-5 h-5" />
-                      SEQUÊNCIA DE JOGOS
+                      <Calendar className="w-5 h-5" />
+                      CALENDÁRIO DO MÊS
                     </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {upcomingMatches.slice(1).map((match, i) => {
-                        const isHome = match.homeTeamId === gameState.userTeamId;
-                        const opponent = gameState.teams.find(t => t.id === (isHome ? match.awayTeamId : match.homeTeamId));
-                        if (!opponent) return null;
+                    <div className="grid grid-cols-7 gap-2">
+                      {Array.from({ length: 31 }, (_, i) => {
+                        const day = i + 1;
+                        // Mapeia dias para rodadas (ex: cada 7 dias uma rodada)
+                        const week = Math.ceil(day / 7);
+                        const match = gameState.matches.find(m => m.week === week && (m.homeTeamId === gameState.userTeamId || m.awayTeamId === gameState.userTeamId));
+                        const isToday = day === (gameState.currentWeek - 1) * 7 + 1; // Simplificação
+                        
                         return (
-                          <div key={i} className="flex items-center justify-between p-4 rounded-xl bg-braskick-noite/50 border border-white/5 hover:border-white/10 transition-all">
-                            <div className="flex items-center gap-4">
-                              <span className="font-display text-lg text-braskick-muted w-8">R{match.week}</span>
-                              <div className="w-3 h-3 rounded-full shadow-lg" style={{ backgroundColor: opponent.color }} />
-                              <span className="font-display text-xl">{opponent.name}</span>
-                            </div>
-                            <span className="text-xs font-bold text-braskick-muted uppercase tracking-widest">{isHome ? 'Casa' : 'Fora'}</span>
+                          <div key={i} className={`aspect-square rounded-xl border flex flex-col items-center justify-center gap-1 transition-all ${
+                            match ? 'bg-braskick-verde/10 border-braskick-verde/30' : 'bg-braskick-noite/50 border-white/5 opacity-40'
+                          } ${isToday ? 'ring-2 ring-braskick-azul border-braskick-azul' : ''}`}>
+                            <span className="text-[10px] font-bold text-braskick-muted">{day}</span>
+                            {match && (
+                              <div className="w-5 h-5 rounded-lg flex items-center justify-center text-[10px] font-bold text-white shadow-lg" style={{ backgroundColor: gameState.teams.find(t => t.id === (match.homeTeamId === gameState.userTeamId ? match.awayTeamId : match.homeTeamId))?.color }}>
+                                {gameState.teams.find(t => t.id === (match.homeTeamId === gameState.userTeamId ? match.awayTeamId : match.homeTeamId))?.name.substring(0, 1)}
+                              </div>
+                            )}
                           </div>
                         );
                       })}
@@ -983,9 +1008,11 @@ export default function App() {
                     <thead>
                       <tr className="bg-braskick-noite3/50 border-b border-braskick-noite3">
                         <th className="p-5 font-display text-lg text-braskick-muted uppercase tracking-widest">Jogador</th>
+                        <th className="p-5 font-display text-lg text-braskick-muted uppercase tracking-widest text-center">Nac</th>
                         <th className="p-5 font-display text-lg text-braskick-muted uppercase tracking-widest text-center">Pos</th>
                         <th className="p-5 font-display text-lg text-braskick-muted uppercase tracking-widest text-center">Idade</th>
                         <th className="p-5 font-display text-lg text-braskick-muted uppercase tracking-widest text-center">OVR</th>
+                        <th className="p-5 font-display text-lg text-braskick-muted uppercase tracking-widest text-center">Status</th>
                         <th className="p-5 font-display text-lg text-braskick-muted uppercase tracking-widest text-center">Gols</th>
                         <th className="p-5 font-display text-lg text-braskick-muted uppercase tracking-widest text-right">Valor</th>
                       </tr>
@@ -1008,6 +1035,9 @@ export default function App() {
                             </div>
                           </td>
                           <td className="p-5 text-center">
+                            <span className="text-xl" title={player.nationality}>{player.nationality === 'Brasil' ? '🇧🇷' : player.nationality === 'Argentina' ? '🇦🇷' : '🌍'}</span>
+                          </td>
+                          <td className="p-5 text-center">
                             <span className={`font-display text-sm px-3 py-1 rounded-full ${
                               player.position === 'GK' ? 'bg-braskick-ouro/10 text-braskick-ouro' :
                               player.position === 'DF' ? 'bg-braskick-verde/10 text-braskick-verde' :
@@ -1020,6 +1050,13 @@ export default function App() {
                           <td className="p-5 text-center font-display text-lg text-braskick-muted">{player.age}</td>
                           <td className="p-5 text-center">
                             <span className="ovr-badge">{player.overall}</span>
+                          </td>
+                          <td className="p-5 text-center">
+                            <div className="flex items-center justify-center gap-2">
+                              {player.isInjured && <AlertTriangle className="w-5 h-5 text-red-500" title="Machucado" />}
+                              {player.isSuspended && <XCircle className="w-5 h-5 text-red-600" title="Suspenso" />}
+                              {!player.isInjured && !player.isSuspended && <CheckCircle2 className="w-5 h-5 text-braskick-verde opacity-30" />}
+                            </div>
                           </td>
                           <td className="p-5 text-center font-display text-xl">{player.goals}</td>
                           <td className="p-5 text-right font-display text-xl text-braskick-verde">R$ {(player.value / 1000000).toFixed(1)}M</td>
@@ -1236,31 +1273,31 @@ export default function App() {
                     const weekMatches = (gameState.matches || []).filter(m => m.week === weekNum && m.competitionId === activeCompetitionId);
                     const isCurrentWeek = weekNum === gameState.currentWeek;
                     const isPastWeek = weekNum < gameState.currentWeek;
-                    const hasUserMatch = weekMatches.some(m => m.homeTeamId === gameState.userTeamId || m.awayTeamId === gameState.userTeamId);
+                    const userMatch = weekMatches.find(m => m.homeTeamId === gameState.userTeamId || m.awayTeamId === gameState.userTeamId);
                     
                     // Só mostramos ícones nos dias de jogo (vamos assumir que jogos são no Sábado/Domingo para visual)
                     const isMatchDay = i % 7 === 5 || i % 7 === 6;
-                    const match = isMatchDay ? weekMatches[i % 7 === 5 ? 0 : 1] : null;
+                    const match = isMatchDay ? userMatch || weekMatches[i % 7 === 5 ? 0 : 1] : null;
 
                     return (
                       <div 
                         key={i} 
                         className={`aspect-square braskick-card p-2 flex flex-col justify-between relative group transition-all ${
                           isCurrentWeek ? 'border-braskick-azul/50 bg-braskick-azul/5' : 'opacity-80'
-                        } ${isPastWeek ? 'grayscale-[0.5]' : ''}`}
+                        } ${isPastWeek ? 'grayscale-[0.5]' : ''} ${userMatch ? 'ring-1 ring-braskick-verde/30' : ''}`}
                       >
                         <span className={`text-[10px] font-bold ${isCurrentWeek ? 'text-braskick-azul' : 'text-braskick-muted'}`}>{dayNum}</span>
                         
-                        {isMatchDay && weekMatches.length > 0 && (
+                        {match && (
                           <button 
-                            onClick={() => setSelectedCalendarMatch(match || weekMatches[0])}
+                            onClick={() => setSelectedCalendarMatch(match)}
                             className="flex flex-col items-center gap-1 w-full hover:scale-110 transition-transform"
                           >
                             <div className="w-6 h-6 rounded-lg bg-braskick-noite flex items-center justify-center border border-white/5">
-                              <Zap className={`w-3 h-3 ${hasUserMatch ? 'text-braskick-verde' : 'text-braskick-ouro'}`} />
+                              <Zap className={`w-3 h-3 ${match.homeTeamId === gameState.userTeamId || match.awayTeamId === gameState.userTeamId ? 'text-braskick-verde' : 'text-braskick-ouro'}`} />
                             </div>
                             <span className="text-[8px] font-bold uppercase tracking-tighter text-center leading-none truncate w-full">
-                              RODADA {weekNum}
+                              {match.homeTeamId === gameState.userTeamId || match.awayTeamId === gameState.userTeamId ? 'MEU JOGO' : `RODADA ${weekNum}`}
                             </span>
                           </button>
                         )}
@@ -1419,8 +1456,16 @@ export default function App() {
                 key="history"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
-                className="space-y-4"
+                className="space-y-6"
               >
+                <div className="flex items-center justify-between">
+                  <h2 className="font-display text-3xl tracking-tighter uppercase italic">Histórico de Partidas</h2>
+                  <div className="flex gap-2">
+                    <button className="px-4 py-2 rounded-xl bg-white/5 text-xs font-bold uppercase tracking-widest hover:bg-white/10 transition-all">Por Rodada</button>
+                    <button className="px-4 py-2 rounded-xl bg-white/5 text-xs font-bold uppercase tracking-widest hover:bg-white/10 transition-all">Por Data</button>
+                  </div>
+                </div>
+
                 {(gameState.history || []).length === 0 ? (
                   <div className="braskick-card p-20 text-center">
                     <HistoryIcon className="w-16 h-16 text-braskick-noite3 mx-auto mb-6" />
@@ -1686,9 +1731,10 @@ function StatCard({ label, value, icon }: { label: string, value: string | numbe
 
 function TeamDisplay({ team }: { team: Team | undefined }) {
   if (!team) return null;
+  const isWhite = team.color.toLowerCase() === '#ffffff' || team.color.toLowerCase() === 'white';
   return (
     <div className="text-center group">
-      <div className="w-20 h-20 rounded-[1.5rem] mx-auto mb-4 flex items-center justify-center text-4xl font-display text-white shadow-2xl transition-transform group-hover:scale-110 overflow-hidden" style={{ backgroundColor: team.color }}>
+      <div className="w-20 h-20 rounded-[1.5rem] mx-auto mb-4 flex items-center justify-center text-4xl font-display shadow-2xl transition-transform group-hover:scale-110 overflow-hidden border border-white/10" style={{ backgroundColor: team.color, color: isWhite ? '#000000' : '#ffffff' }}>
         {team.logo ? <img src={team.logo} alt="" className="w-full h-full object-contain" referrerPolicy="no-referrer" /> : team.name.substring(0, 1)}
       </div>
       <div className="font-display text-xl uppercase tracking-wider">{team.name}</div>
