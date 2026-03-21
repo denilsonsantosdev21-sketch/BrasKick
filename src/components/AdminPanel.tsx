@@ -368,24 +368,27 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                       </div>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                      {gameState.teams.map(team => (
-                        <button 
-                          key={team.id} 
-                          onClick={() => setSelectedTeamId(team.id)}
-                          data-name={team.name}
-                          className="team-select-card braskick-card group text-left hover:border-braskick-verde/50 transition-all"
-                        >
-                          <div className="flex items-center gap-3">
-                            <div 
-                              className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-display text-xl shadow-lg"
-                              style={{ backgroundColor: team.color }}
-                            >
-                              {team.logo ? <img src={team.logo} alt="" className="w-full h-full object-contain rounded-lg" referrerPolicy="no-referrer" /> : team.name.substring(0, 1)}
+                      {gameState.teams.map(team => {
+                        if (!team) return null;
+                        return (
+                          <button 
+                            key={team.id} 
+                            onClick={() => setSelectedTeamId(team.id)}
+                            data-name={team.name}
+                            className="team-select-card braskick-card group text-left hover:border-braskick-verde/50 transition-all"
+                          >
+                            <div className="flex items-center gap-3">
+                              <div 
+                                className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-display text-xl shadow-lg"
+                                style={{ backgroundColor: team.color }}
+                              >
+                                {team.logo ? <img src={team.logo} alt="" className="w-full h-full object-contain rounded-lg" referrerPolicy="no-referrer" /> : team.name.substring(0, 1)}
+                              </div>
+                              <div className="font-display text-lg leading-none">{team.name}</div>
                             </div>
-                            <div className="font-display text-lg leading-none">{team.name}</div>
-                          </div>
-                        </button>
-                      ))}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                 ) : (

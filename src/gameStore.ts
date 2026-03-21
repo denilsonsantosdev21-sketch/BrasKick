@@ -156,7 +156,8 @@ export const useGameStore = create<GameStore>()(
         gameState: state.gameState ? {
           ...state.gameState,
           competitions: state.gameState.competitions.filter(c => c.id !== id),
-          teams: state.gameState.teams.filter(t => t.leagueId !== id)
+          teams: state.gameState.teams.filter(t => t.leagueId !== id),
+          matches: state.gameState.matches.filter(m => m.competitionId !== id)
         } : null
       })),
 
@@ -177,7 +178,8 @@ export const useGameStore = create<GameStore>()(
       deleteTeam: (id) => set((state) => ({
         gameState: state.gameState ? {
           ...state.gameState,
-          teams: state.gameState.teams.filter(t => t.id !== id)
+          teams: state.gameState.teams.filter(t => t.id !== id),
+          matches: state.gameState.matches.filter(m => m.homeTeamId !== id && m.awayTeamId !== id)
         } : null
       })),
 

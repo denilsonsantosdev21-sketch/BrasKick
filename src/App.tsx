@@ -471,8 +471,10 @@ export default function App() {
       const simulatedMatches: Match[] = [];
 
       matchesToSimulate.forEach(match => {
-        const home = updatedTeams.find(t => t.id === match.homeTeamId)!;
-        const away = updatedTeams.find(t => t.id === match.awayTeamId)!;
+        const home = updatedTeams.find(t => t.id === match.homeTeamId);
+        const away = updatedTeams.find(t => t.id === match.awayTeamId);
+        if (!home || !away) return;
+        
         const result = simulateMatch(home, away, gameState.currentWeek, match.competitionId);
         simulatedMatches.push(result);
         updatedTeams = updateStandings(updatedTeams, result);
@@ -1286,8 +1288,10 @@ export default function App() {
                       </div>
                       <div className="divide-y divide-white/5">
                         {weekMatches.map(match => {
-                          const home = gameState.teams.find(t => t.id === match.homeTeamId)!;
-                          const away = gameState.teams.find(t => t.id === match.awayTeamId)!;
+                          const home = gameState.teams.find(t => t.id === match.homeTeamId);
+                          const away = gameState.teams.find(t => t.id === match.awayTeamId);
+                          if (!home || !away) return null;
+                          
                           const isUserMatch = home.id === gameState.userTeamId || away.id === gameState.userTeamId;
                           return (
                             <div key={match.id} className={`p-4 flex items-center justify-between hover:bg-white/5 transition-colors ${isUserMatch ? 'bg-braskick-verde/5' : ''}`}>
@@ -1424,8 +1428,10 @@ export default function App() {
                   </div>
                 ) : (
                   (gameState.history || []).map(match => {
-                    const home = gameState.teams.find(t => t.id === match.homeTeamId)!;
-                    const away = gameState.teams.find(t => t.id === match.awayTeamId)!;
+                    const home = gameState.teams.find(t => t.id === match.homeTeamId);
+                    const away = gameState.teams.find(t => t.id === match.awayTeamId);
+                    if (!home || !away) return null;
+                    
                     const isUserMatch = home.id === gameState.userTeamId || away.id === gameState.userTeamId;
                     const userWon = (home.id === gameState.userTeamId && match.homeScore > match.awayScore) || 
                                     (away.id === gameState.userTeamId && match.awayScore > match.homeScore);
