@@ -34,17 +34,17 @@ const generateSquad = (teamOverall: number, playerCount: number = 11): Player[] 
 export const COMPETITIONS: Competition[] = [
   { 
     id: 'br_a', name: 'Brasileirão Série A', type: 'LEAGUE', region: 'BRAZIL', tier: 1,
-    teamsCount: 20, relegationCount: 4, promotionCount: 0,
+    teamsCount: 20, relegationCount: 4, promotionCount: 0, qualificationSpots: 6, playersPerTeam: 22,
     countryName: 'Brasil', countryFlag: 'https://flagcdn.com/br.svg'
   },
   { 
     id: 'en_pl', name: 'Premier League', type: 'LEAGUE', region: 'EUROPE', tier: 1,
-    teamsCount: 20, relegationCount: 3, promotionCount: 0,
+    teamsCount: 20, relegationCount: 3, promotionCount: 0, qualificationSpots: 4, playersPerTeam: 25,
     countryName: 'Inglaterra', countryFlag: 'https://flagcdn.com/gb-eng.svg'
   },
   { 
     id: 'es_ll', name: 'La Liga', type: 'LEAGUE', region: 'EUROPE', tier: 1,
-    teamsCount: 20, relegationCount: 3, promotionCount: 0,
+    teamsCount: 20, relegationCount: 3, promotionCount: 0, qualificationSpots: 4, playersPerTeam: 25,
     countryName: 'Espanha', countryFlag: 'https://flagcdn.com/es.svg'
   },
   { id: 'eu_cl', name: 'Champions League', type: 'LEAGUE', region: 'EUROPE', tier: 0 },
@@ -155,8 +155,9 @@ const TEAM_DATA = [
 ];
 
 // Gera os times iniciais
-export const generateInitialTeams = (): Team[] => {
+export const generateInitialTeams = (competitions: Competition[] = COMPETITIONS): Team[] => {
   return TEAM_DATA.map((t, i) => {
+    const comp = competitions.find(c => c.id === t.leagueId);
     const overall = t.overall + Math.floor(Math.random() * 5) - 2;
     return {
       id: `team-${i}`,
@@ -166,7 +167,7 @@ export const generateInitialTeams = (): Team[] => {
       attack: overall + Math.floor(Math.random() * 5),
       midfield: overall + Math.floor(Math.random() * 5),
       defense: overall + Math.floor(Math.random() * 5),
-      players: generateSquad(overall),
+      players: generateSquad(overall, comp?.playersPerTeam || 11),
       points: 0,
       played: 0,
       won: 0,
@@ -183,70 +184,92 @@ export const generateInitialTeams = (): Team[] => {
 };
 
 // Gera o calendário do campeonato (Round Robin) para cada liga
-export const generateSchedule = (teams: Team[]): Match[] => {
+export const generateSchedule = (teams: Team[], competitions: Competition[]): Match[] => {
   const allMatches: Match[] = [];
-  const leagues = Array.from(new Set(teams.map(t => t.leagueId)));
 
-  (leagues || []).forEach(leagueId => {
-    const leagueTeams = [...teams.filter(t => t.leagueId === leagueId)];
-    
-    // Se o número de times for ímpar, adiciona um time "Folga" (Bye)
-    // Para simplificar, vamos apenas garantir que o algoritmo não quebre
-    // e que todos joguem contra todos.
-    if (leagueTeams.length % 2 !== 0) {
-      // Adiciona um time fantasma para balancear o Round Robin
-      leagueTeams.push({
-        id: 'bye',
-        name: 'Folga',
-        leagueId: leagueId,
-        overall: 0,
-        attack: 0,
-        midfield: 0,
-        defense: 0,
-        players: [],
-        points: 0,
-        played: 0,
-        won: 0,
-        drawn: 0,
-        lost: 0,
-        gf: 0,
-        ga: 0,
-        gd: 0,
-        form: [],
-        budget: 0,
-        color: '#000000'
-      });
-    }
+  competitions.forEach(comp => {
+    const leagueId = comp.id;
+    const leagueTeams = [...teams.filter(t => 
+      t.leagueId === leagueId || (t.competitionIds && t.competitionIds.includes(leagueId))
+    )];
 
-    const numTeams = leagueTeams.length;
-    const numRounds = (numTeams - 1) * 2;
-    const matchesPerRound = numTeams / 2;
-    const teamIds = leagueTeams.map(t => t.id);
+    if (leagueTeams.length < 2) return;
 
-    for (let round = 0; round < numRounds; round++) {
-      for (let i = 0; i < matchesPerRound; i++) {
-        const homeIdx = (round + i) % (numTeams - 1);
-        let awayIdx = (numTeams - 1 - i + round) % (numTeams - 1);
+    if (comp.type === 'LEAGUE') {
+      // Round Robin (Pontos Corridos)
+      if (leagueTeams.length % 2 !== 0) {
+        leagueTeams.push({
+          id: 'bye',
+          name: 'Folga',
+          leagueId: leagueId,
+          overall: 0,
+          attack: 0,
+          midfield: 0,
+          defense: 0,
+          players: [],
+          points: 0,
+          played: 0,
+          won: 0,
+          drawn: 0,
+          lost: 0,
+          gf: 0,
+          ga: 0,
+          gd: 0,
+          form: [],
+          budget: 0,
+          color: '#000000'
+        });
+      }
 
-        if (i === 0) awayIdx = numTeams - 1;
+      const numTeams = leagueTeams.length;
+      const numRounds = (numTeams - 1) * 2;
+      const matchesPerRound = numTeams / 2;
+      const teamIds = leagueTeams.map(t => t.id);
 
-        const homeTeamId = round % 2 === 0 ? teamIds[homeIdx] : teamIds[awayIdx];
-        const awayTeamId = round % 2 === 0 ? teamIds[awayIdx] : teamIds[homeIdx];
+      for (let round = 0; round < numRounds; round++) {
+        for (let i = 0; i < matchesPerRound; i++) {
+          const homeIdx = (round + i) % (numTeams - 1);
+          let awayIdx = (numTeams - 1 - i + round) % (numTeams - 1);
 
-        // Não adiciona partidas contra o time de "Folga"
-        if (homeTeamId !== 'bye' && awayTeamId !== 'bye') {
-          allMatches.push({
-            id: `match-${leagueId}-${round}-${i}`,
-            week: round + 1,
-            competitionId: leagueId,
-            homeTeamId,
-            awayTeamId,
-            homeScore: 0,
-            awayScore: 0,
-            played: false,
-            events: []
-          });
+          if (i === 0) awayIdx = numTeams - 1;
+
+          const homeTeamId = round % 2 === 0 ? teamIds[homeIdx] : teamIds[awayIdx];
+          const awayTeamId = round % 2 === 0 ? teamIds[awayIdx] : teamIds[homeIdx];
+
+          if (homeTeamId !== 'bye' && awayTeamId !== 'bye') {
+            allMatches.push({
+              id: `match-${leagueId}-${round}-${i}`,
+              week: round + 1,
+              competitionId: leagueId,
+              homeTeamId,
+              awayTeamId,
+              homeScore: 0,
+              awayScore: 0,
+              played: false,
+              events: []
+            });
+          }
         }
+      }
+    } else if (comp.type === 'TOURNAMENT') {
+      // Knockout (Mata-Mata) - Simplificado
+      const numTeams = leagueTeams.length;
+      const powerOfTwo = Math.pow(2, Math.floor(Math.log2(numTeams)));
+      const teamsToSchedule = leagueTeams.slice(0, powerOfTwo);
+      
+      // Gera apenas a primeira rodada
+      for (let i = 0; i < teamsToSchedule.length; i += 2) {
+        allMatches.push({
+          id: `match-${leagueId}-cup-r1-${i}`,
+          week: 1,
+          competitionId: leagueId,
+          homeTeamId: teamsToSchedule[i].id,
+          awayTeamId: teamsToSchedule[i+1].id,
+          homeScore: 0,
+          awayScore: 0,
+          played: false,
+          events: []
+        });
       }
     }
   });

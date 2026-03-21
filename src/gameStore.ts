@@ -22,8 +22,10 @@ interface GameStore {
   // Admin Actions
   updateCompetition: (competition: Competition) => void;
   addCompetition: (competition: Competition) => void;
+  deleteCompetition: (id: string) => void;
   addTeam: (team: Team) => void;
   updateTeam: (team: Team) => void;
+  deleteTeam: (id: string) => void;
   updatePlayer: (teamId: string, player: Player) => void;
 }
 
@@ -149,6 +151,14 @@ export const useGameStore = create<GameStore>()(
           competitions: [...state.gameState.competitions, competition]
         } : null
       })),
+      
+      deleteCompetition: (id) => set((state) => ({
+        gameState: state.gameState ? {
+          ...state.gameState,
+          competitions: state.gameState.competitions.filter(c => c.id !== id),
+          teams: state.gameState.teams.filter(t => t.leagueId !== id)
+        } : null
+      })),
 
       addTeam: (team) => set((state) => ({
         gameState: state.gameState ? {
@@ -161,6 +171,13 @@ export const useGameStore = create<GameStore>()(
         gameState: state.gameState ? {
           ...state.gameState,
           teams: state.gameState.teams.map(t => t.id === team.id ? team : t)
+        } : null
+      })),
+
+      deleteTeam: (id) => set((state) => ({
+        gameState: state.gameState ? {
+          ...state.gameState,
+          teams: state.gameState.teams.filter(t => t.id !== id)
         } : null
       })),
 

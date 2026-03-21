@@ -285,7 +285,7 @@ export default function App() {
   const startGame = async (teamId: string) => {
     try {
       const teams = generateInitialTeams();
-      const schedule = generateSchedule(teams);
+      const schedule = generateSchedule(teams, COMPETITIONS);
       const selectedTeam = teams.find(t => t.id === teamId)!;
       
       const newState: GameState = {
@@ -383,10 +383,80 @@ export default function App() {
 
   const handleNextSeason = () => {
     if (!gameState) return;
-    const newTeams = resetTeamsForNewSeason(gameState.teams);
-    const newSchedule = generateSchedule(newTeams);
-    nextSeason(newTeams, newSchedule);
-    setNews(prev => [...prev, `Temporada ${gameState.season + 1} iniciada! Boa sorte!`]);
+
+    // 1. Resetar estatísticas de jogadores e times
+    let updatedTeams = resetTeamsForNewSeason(gameState.teams);
+
+    // 2. Lógica de Promoção e Rebaixamento
+    const competitions = gameState.competitions;
+    const teamsByLeague: { [key: string]: Team[] } = {};
+
+    // Agrupa times por liga e ordena por classificação
+    competitions.forEach(comp => {
+      teamsByLeague[comp.id] = updatedTeams
+        .filter(t => t.leagueId === comp.id)
+        .sort((a, b) => {
+          if (b.points !== a.points) return b.points - a.points;
+          if (b.gd !== a.gd) return b.gd - a.gd;
+          return b.gf - a.gf;
+        });
+    });
+
+    // Processa cada competição para trocas e qualificações
+    competitions.forEach(comp => {
+      if (comp.type !== 'LEAGUE') return;
+
+      const standings = teamsByLeague[comp.id];
+
+      // Rebaixamento (Tier N -> Tier N+1)
+      if (comp.relegationCount && comp.relegationCount > 0) {
+        const relegatedTeams = standings.slice(-comp.relegationCount);
+        const nextTierComp = competitions.find(c => c.region === comp.region && c.tier === (comp.tier || 1) + 1);
+        
+        if (nextTierComp) {
+          relegatedTeams.forEach(team => {
+            const teamIdx = updatedTeams.findIndex(t => t.id === team.id);
+            updatedTeams[teamIdx].leagueId = nextTierComp.id;
+          });
+        }
+      }
+
+      // Promoção (Tier N -> Tier N-1)
+      if (comp.promotionCount && comp.promotionCount > 0) {
+        const promotedTeams = standings.slice(0, comp.promotionCount);
+        const prevTierComp = competitions.find(c => c.region === comp.region && c.tier === (comp.tier || 1) - 1);
+
+        if (prevTierComp) {
+          promotedTeams.forEach(team => {
+            const teamIdx = updatedTeams.findIndex(t => t.id === team.id);
+            updatedTeams[teamIdx].leagueId = prevTierComp.id;
+          });
+        }
+      }
+
+      // Qualificação Continental (ex: 4 primeiros vão para Libertadores)
+      if (comp.qualificationSpots) {
+        Object.entries(comp.qualificationSpots).forEach(([targetCompId, spots]) => {
+          const qualifiedTeams = standings.slice(0, spots);
+          qualifiedTeams.forEach(team => {
+            const teamIdx = updatedTeams.findIndex(t => t.id === team.id);
+            if (!updatedTeams[teamIdx].competitionIds) {
+              updatedTeams[teamIdx].competitionIds = [updatedTeams[teamIdx].leagueId];
+            }
+            if (!updatedTeams[teamIdx].competitionIds?.includes(targetCompId)) {
+              updatedTeams[teamIdx].competitionIds?.push(targetCompId);
+            }
+          });
+        });
+      }
+    });
+
+    // 3. Gerar novo calendário
+    const newSchedule = generateSchedule(updatedTeams, gameState.competitions);
+    
+    // 4. Iniciar nova temporada
+    nextSeason(updatedTeams, newSchedule);
+    setNews(prev => [...prev, `Temporada ${gameState.season + 1} iniciada! Promoções e rebaixamentos processados.`]);
   };
 
   // Simula a próxima rodada do campeonato
@@ -563,6 +633,33 @@ export default function App() {
               <button onClick={handleLogout} className="flex items-center gap-2 text-xs text-red-400 hover:text-red-300 font-bold uppercase tracking-widest transition-colors">
                 <LogOut className="w-3 h-3" />
                 Sair
+              </button>
+            </div>
+          )}
+          {isAdmin && (
+            <div className="absolute top-6 left-6">
+              <button 
+                onClick={() => {
+                  if (!gameState) {
+                    const teams = generateInitialTeams();
+                    const schedule = generateSchedule(teams, COMPETITIONS);
+                    setGameState({
+                      userTeamId: '',
+                      teams,
+                      competitions: COMPETITIONS,
+                      currentWeek: 1,
+                      totalWeeks: Math.max(...schedule.map(m => m.week)),
+                      season: 1,
+                      matches: schedule,
+                      history: []
+                    });
+                  }
+                  setShowAdminPanel(true);
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-braskick-ouro/10 border border-braskick-ouro/20 rounded-xl text-braskick-ouro hover:bg-braskick-ouro/20 transition-all font-display text-xs uppercase tracking-widest"
+              >
+                <Shield className="w-4 h-4" />
+                Painel Admin
               </button>
             </div>
           )}

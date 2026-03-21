@@ -12,11 +12,8 @@ export interface Competition {
   teamsCount?: number;
   promotionCount?: number;
   relegationCount?: number;
-  qualificationSpots?: {
-    competitionId: string;
-    spots: number;
-    startRank: number;
-  }[];
+  qualificationSpots?: number;
+  playersPerTeam?: number;
   hasPlayoffs?: boolean;
   playoffTeamsCount?: number;
 }
@@ -37,6 +34,7 @@ export interface Team {
   id: string;
   name: string;
   leagueId: string;
+  competitionIds?: string[];
   overall: number;
   attack: number;
   midfield: number;

@@ -11,7 +11,8 @@ import {
   ChevronRight,
   ChevronLeft,
   X,
-  Edit2
+  Edit2,
+  Globe
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Competition, Team, Player } from '../types';
@@ -22,8 +23,8 @@ interface AdminPanelProps {
 }
 
 export default function AdminPanel({ onClose }: AdminPanelProps) {
-  const { gameState, updateCompetition, addCompetition, addTeam, updateTeam, updatePlayer } = useGameStore();
-  const [activeTab, setActiveTab] = useState<'competitions' | 'teams' | 'players'>('competitions');
+  const { gameState, updateCompetition, addCompetition, deleteCompetition, addTeam, updateTeam, deleteTeam, updatePlayer } = useGameStore();
+  const [activeTab, setActiveTab] = useState<'competitions' | 'teams' | 'players' | 'countries'>('competitions');
   
   // Selection states
   const [selectedCompId, setSelectedCompId] = useState<string | null>(null);
@@ -103,6 +104,12 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
             label="Times"
           />
           <AdminNavButton 
+            active={activeTab === 'countries'} 
+            onClick={() => setActiveTab('countries')}
+            icon={<Globe className="w-5 h-5" />}
+            label="Países"
+          />
+          <AdminNavButton 
             active={activeTab === 'players'} 
             onClick={() => setActiveTab('players')}
             icon={<Users className="w-5 h-5" />}
@@ -163,6 +170,12 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                         >
                           Ver Times
                         </button>
+                        <button 
+                          onClick={() => deleteCompetition(comp.id)}
+                          className="text-[10px] font-bold uppercase tracking-widest py-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-lg transition-colors"
+                        >
+                          Excluir
+                        </button>
                       </div>
                     </div>
                   ))}
@@ -218,14 +231,79 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                           <Edit2 className="w-4 h-4" />
                         </button>
                       </div>
-                      <button 
-                        onClick={() => { setSelectedTeamId(team.id); setActiveTab('players'); }}
-                        className="w-full text-[10px] font-bold uppercase tracking-widest py-2 bg-white/5 hover:bg-white/10 rounded-lg transition-colors"
-                      >
-                        Gerenciar Elenco
-                      </button>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button 
+                          onClick={() => { setSelectedTeamId(team.id); setActiveTab('players'); }}
+                          className="text-[10px] font-bold uppercase tracking-widest py-2 bg-white/5 hover:bg-white/10 rounded-lg transition-colors"
+                        >
+                          Elenco
+                        </button>
+                        <button 
+                          onClick={() => deleteTeam(team.id)}
+                          className="text-[10px] font-bold uppercase tracking-widest py-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-lg transition-colors"
+                        >
+                          Excluir
+                        </button>
+                      </div>
                     </div>
                   ))}
+                </div>
+              </motion.div>
+            )}
+
+            {activeTab === 'countries' && (
+              <motion.div 
+                key="countries"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="space-y-8"
+              >
+                <div className="flex items-center justify-between">
+                  <h2 className="font-display text-3xl uppercase tracking-widest">Gerenciar Países</h2>
+                  <button 
+                    onClick={() => setEditingItem({ name: '', type: 'LEAGUE', region: 'BRAZIL', tier: 1, countryName: '', countryFlag: '' })}
+                    className="braskick-button-primary flex items-center gap-2"
+                  >
+                    <Plus className="w-5 h-5" /> NOVO PAÍS
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {Array.from(new Set(competitions.map(c => c.countryName))).filter(Boolean).map(countryName => {
+                    const comp = competitions.find(c => c.countryName === countryName);
+                    return (
+                      <div key={countryName} className="braskick-card group">
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="flex items-center gap-3">
+                            <img src={comp?.countryFlag} alt="" className="w-10 h-6 object-cover rounded shadow-sm" />
+                            <div className="font-display text-lg leading-none">{countryName}</div>
+                          </div>
+                          <button 
+                            onClick={() => setEditingItem(comp)}
+                            className="p-2 hover:bg-white/5 rounded-lg transition-colors text-braskick-muted hover:text-white"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                        <button 
+                          onClick={() => { 
+                            setEditingItem({ 
+                              name: '', 
+                              type: 'LEAGUE', 
+                              region: comp?.region || 'BRAZIL', 
+                              tier: 1, 
+                              countryName: countryName, 
+                              countryFlag: comp?.countryFlag 
+                            });
+                          }}
+                          className="w-full text-[10px] font-bold uppercase tracking-widest py-2 bg-braskick-verde/10 text-braskick-verde hover:bg-braskick-verde/20 rounded-lg transition-colors"
+                        >
+                          Adicionar Liga
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
               </motion.div>
             )}
@@ -366,7 +444,7 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                           <input type="number" value={editingItem.promotionCount || 0} onChange={(e) => setEditingItem({...editingItem, promotionCount: parseInt(e.target.value)})} className="w-full bg-braskick-noite border border-white/10 rounded-xl p-3 text-white outline-none" />
                         </div>
                       </div>
-                      <div className="col-span-2 grid grid-cols-2 gap-4">
+                      <div className="col-span-2 grid grid-cols-3 gap-4">
                         <div>
                           <label className="block text-[10px] font-bold text-braskick-muted uppercase tracking-widest mb-2">Times</label>
                           <input type="number" value={editingItem.teamsCount || 20} onChange={(e) => setEditingItem({...editingItem, teamsCount: parseInt(e.target.value)})} className="w-full bg-braskick-noite border border-white/10 rounded-xl p-3 text-white outline-none" />
@@ -374,6 +452,10 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                         <div>
                           <label className="block text-[10px] font-bold text-braskick-muted uppercase tracking-widest mb-2">Vagas Continentais</label>
                           <input type="number" value={editingItem.qualificationSpots || 0} onChange={(e) => setEditingItem({...editingItem, qualificationSpots: parseInt(e.target.value)})} className="w-full bg-braskick-noite border border-white/10 rounded-xl p-3 text-white outline-none" />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-braskick-muted uppercase tracking-widest mb-2">Jogadores/Time</label>
+                          <input type="number" value={editingItem.playersPerTeam || 11} onChange={(e) => setEditingItem({...editingItem, playersPerTeam: parseInt(e.target.value)})} className="w-full bg-braskick-noite border border-white/10 rounded-xl p-3 text-white outline-none" />
                         </div>
                       </div>
                       <div className="col-span-2 flex items-center gap-4 p-4 bg-braskick-noite rounded-2xl border border-white/5">
