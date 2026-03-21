@@ -130,6 +130,96 @@ export default function App() {
     }
   };
 
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  const syncToSupabase = async () => {
+    if (!user || !gameState) return;
+    setIsSyncing(true);
+    try {
+      // 1. Sincronizar Competições
+      const { data: compsData, error: compsError } = await supabase
+        .from('competitions')
+        .upsert(COMPETITIONS.map(c => ({
+          id: c.id,
+          name: c.name,
+          type: c.type,
+          region: c.region,
+          tier: c.tier
+        })));
+      
+      if (compsError) throw compsError;
+
+      // 2. Sincronizar Times
+      const { error: teamsError } = await supabase
+        .from('teams')
+        .upsert(gameState.teams.map(t => ({
+          id: t.id,
+          competition_id: t.leagueId,
+          name: t.name,
+          color: t.color,
+          overall: t.overall,
+          attack: t.attack,
+          midfield: t.midfield,
+          defense: t.defense,
+          budget: t.budget,
+          points: t.points,
+          played: t.played,
+          won: t.won,
+          drawn: t.drawn,
+          lost: t.lost,
+          gf: t.gf,
+          ga: t.ga,
+          gd: t.gd,
+          form: t.form
+        })));
+      
+      if (teamsError) throw teamsError;
+
+      // 3. Sincronizar Jogadores (Opcional, pode ser pesado)
+      const allPlayers = gameState.teams.flatMap(t => t.players.map(p => ({
+        id: p.id,
+        team_id: t.id,
+        name: p.name,
+        position: p.position,
+        overall: p.overall,
+        age: p.age,
+        value: p.value,
+        goals: p.goals,
+        assists: p.assists
+      })));
+
+      const { error: playersError } = await supabase
+        .from('players')
+        .upsert(allPlayers);
+      
+      if (playersError) throw playersError;
+
+      // 4. Sincronizar Partidas
+      const { error: matchesError } = await supabase
+        .from('matches')
+        .upsert(gameState.matches.map(m => ({
+          id: m.id,
+          competition_id: m.competitionId,
+          week: m.week,
+          home_team_id: m.homeTeamId,
+          away_team_id: m.awayTeamId,
+          home_score: m.homeScore,
+          away_score: m.awayScore,
+          played: m.played,
+          events: m.events
+        })));
+      
+      if (matchesError) throw matchesError;
+
+      setNews(prev => [...prev, "Dados sincronizados com sucesso no Supabase!"]);
+    } catch (error) {
+      console.error("Erro ao sincronizar:", error);
+      setNews(prev => [...prev, "Erro ao sincronizar com o Supabase."]);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   const saveGame = async (state: GameState) => {
     if (!user) return;
     try {
@@ -531,6 +621,18 @@ export default function App() {
             <SidebarItem active={activeTab === 'fixtures'} icon={<Calendar className="w-5 h-5" />} label="Calendário" onClick={() => { setActiveTab('fixtures'); setIsSidebarOpen(false); }} />
             <SidebarItem active={activeTab === 'market'} icon={<ShoppingCart className="w-5 h-5" />} label="Mercado" onClick={() => { setActiveTab('market'); setIsSidebarOpen(false); }} />
             <SidebarItem active={activeTab === 'history'} icon={<HistoryIcon className="w-5 h-5" />} label="Histórico" onClick={() => { setActiveTab('history'); setIsSidebarOpen(false); }} />
+            {user && (
+              <button 
+                onClick={syncToSupabase}
+                disabled={isSyncing}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-braskick-muted hover:bg-white/5 hover:text-white group"
+              >
+                <div className={`p-2 rounded-lg transition-colors ${isSyncing ? 'bg-braskick-ouro/20 text-braskick-ouro animate-spin' : 'bg-braskick-azul/20 text-braskick-azul group-hover:bg-braskick-azul group-hover:text-white'}`}>
+                  <Settings className="w-5 h-5" />
+                </div>
+                <span className="font-display text-sm uppercase tracking-widest">{isSyncing ? 'Sincronizando...' : 'Sincronizar DB'}</span>
+              </button>
+            )}
           </nav>
 
           <div className="mt-auto pt-6 border-t border-braskick-noite3">
