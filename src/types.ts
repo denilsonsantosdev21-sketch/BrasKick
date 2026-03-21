@@ -38,6 +38,7 @@ export interface Team {
   gd: number;
   budget: number;
   color: string;
+  form: ('W' | 'D' | 'L')[];
 }
 
 export interface MatchEvent {

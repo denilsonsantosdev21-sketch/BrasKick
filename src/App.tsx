@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Trophy, 
@@ -20,7 +21,12 @@ import {
   Loader2,
   Coins,
   Settings,
-  ChevronRight
+  ChevronRight,
+  Search,
+  CheckCircle2,
+  XCircle,
+  MinusCircle,
+  ChevronDown
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Team, Match, Player, GameState } from './types';
@@ -45,9 +51,12 @@ export default function App() {
 
   const [activeTab, setActiveTab] = useState<'dashboard' | 'squad' | 'league' | 'market' | 'history' | 'fixtures'>('dashboard');
   const [activeCompetitionId, setActiveCompetitionId] = useState<string>('br_a');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [marketFilter, setMarketFilter] = useState<'all' | 'GK' | 'DF' | 'MF' | 'FW'>('all');
   const [isSimulating, setIsSimulating] = useState(false);
   const [lastMatchResult, setLastMatchResult] = useState<Match | null>(null);
   const [showMatchResult, setShowMatchResult] = useState(false);
+  const [selectedCalendarMatch, setSelectedCalendarMatch] = useState<Match | null>(null);
   const [news, setNews] = useState<string[]>(["Bem-vindo ao BrasKick! O seu destino no futebol começa aqui."]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
@@ -58,13 +67,18 @@ export default function App() {
   const [isLocalPlay, setIsLocalPlay] = useState(false);
 
   const isSupabaseConfigured = useMemo(() => {
-    const url = (import.meta as any).env.VITE_SUPABASE_URL;
-    const key = (import.meta as any).env.VITE_SUPABASE_ANON_KEY;
+    const url = import.meta.env.VITE_SUPABASE_URL;
+    const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
     return !!url && !!key && url !== '' && key !== '';
   }, []);
 
   // Monitora o estado de autenticação
   useEffect(() => {
+    console.log("Supabase Configured:", isSupabaseConfigured);
+    if (!isSupabaseConfigured) {
+      console.warn("VITE_SUPABASE_URL:", !!import.meta.env.VITE_SUPABASE_URL);
+      console.warn("VITE_SUPABASE_ANON_KEY:", !!import.meta.env.VITE_SUPABASE_ANON_KEY);
+    }
     const initAuth = async () => {
       if (!isSupabaseConfigured) {
         setIsAuthLoading(false);
@@ -246,6 +260,29 @@ export default function App() {
       });
   }, [gameState, userTeam]);
 
+  const marketPlayers = useMemo(() => {
+    if (!gameState) return [];
+    const allPlayers: { player: Player, team: Team }[] = [];
+    gameState.teams.forEach(team => {
+      if (team.id !== gameState.userTeamId) {
+        team.players.forEach(player => {
+          allPlayers.push({ player, team });
+        });
+      }
+    });
+    
+    return allPlayers.filter(item => {
+      const matchesSearch = item.player.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                           item.team.name.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesFilter = marketFilter === 'all' || item.player.position === marketFilter;
+      return matchesSearch && matchesFilter;
+    }).sort((a, b) => b.player.overall - a.player.overall);
+  }, [gameState, searchTerm, marketFilter]);
+
+  const formatMoney = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(value);
+  };
+
   const handleNextSeason = () => {
     if (!gameState) return;
     const newTeams = resetTeamsForNewSeason(gameState.teams);
@@ -345,9 +382,9 @@ export default function App() {
                     ⚠️ SUPABASE NÃO CONFIGURADO
                   </p>
                   <p className="text-[9px] text-amber-200/70 leading-relaxed">
-                    1. Adicione VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY em Settings → Environment Variables.<br/>
-                    2. Reinicie o servidor de desenvolvimento.<br/>
-                    3. Ou jogue no modo local abaixo.
+                    1. Certifique-se de que as variáveis no Vercel começam com <strong>VITE_</strong> (ex: VITE_SUPABASE_URL).<br/>
+                    2. Após adicionar as variáveis, você <strong>DEVE</strong> fazer um novo deploy no Vercel.<br/>
+                    3. Se estiver no AI Studio, adicione em Settings → Environment Variables e reinicie o servidor.
                   </p>
                 </div>
               )}
@@ -740,59 +777,149 @@ export default function App() {
             {activeTab === 'league' && (
               <motion.div 
                 key="league"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                className="space-y-12"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="space-y-8 max-w-5xl mx-auto"
               >
-                {COMPETITIONS.map(comp => {
-                  const compStandings = allStandings[comp.id] || [];
-                  if (compStandings.length === 0) return null;
+                <div className="bg-white rounded-3xl shadow-2xl overflow-hidden text-slate-900">
+                  {/* Header Section */}
+                  <div className="p-8 border-b border-slate-100">
+                    <h2 className="text-3xl font-semibold text-slate-800 mb-6">Classificação</h2>
+                    
+                    <div className="bg-slate-50 rounded-xl p-4 inline-flex flex-col gap-1 border border-slate-200 min-w-[180px]">
+                      <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Temporada</span>
+                      <button className="flex items-center justify-between w-full text-left font-bold text-slate-800">
+                        <span>2026</span>
+                        <ChevronDown className="w-5 h-5 text-slate-400" />
+                      </button>
+                    </div>
+                  </div>
 
-                  return (
-                    <div key={comp.id} className="space-y-4">
-                      <div className="flex items-center gap-4 px-2">
-                        <div className="w-1.5 h-8 bg-braskick-verde rounded-full" />
-                        <h2 className="font-display text-3xl uppercase tracking-widest text-white">{comp.name}</h2>
+                  {/* Table Section */}
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="border-b border-slate-100">
+                          <th className="p-6 text-sm font-medium text-slate-400 uppercase tracking-wider w-16 text-center">Clube</th>
+                          <th className="p-6 text-sm font-medium text-slate-400 uppercase tracking-wider"></th>
+                          <th className="p-6 text-sm font-bold text-slate-800 uppercase tracking-wider text-center">Pts</th>
+                          <th className="p-6 text-sm font-medium text-slate-400 uppercase tracking-wider text-center">PJ</th>
+                          <th className="p-6 text-sm font-medium text-slate-400 uppercase tracking-wider text-center">VIT</th>
+                          <th className="p-6 text-sm font-medium text-slate-400 uppercase tracking-wider text-center">E</th>
+                          <th className="p-6 text-sm font-medium text-slate-400 uppercase tracking-wider text-center">DER</th>
+                          <th className="p-6 text-sm font-medium text-slate-400 uppercase tracking-wider text-center">GM</th>
+                          <th className="p-6 text-sm font-medium text-slate-400 uppercase tracking-wider text-center">GC</th>
+                          <th className="p-6 text-sm font-medium text-slate-400 uppercase tracking-wider text-center">SG</th>
+                          <th className="p-6 text-sm font-medium text-slate-400 uppercase tracking-wider text-center">Ultimas 5</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {standings.map((team, i) => (
+                          <tr 
+                            key={team.id} 
+                            className={`group border-b border-slate-50 hover:bg-slate-50 transition-all ${
+                              team.id === gameState.userTeamId ? 'bg-emerald-50/50' : ''
+                            }`}
+                          >
+                            <td className="p-6 text-center">
+                              <span className="text-lg font-medium text-slate-400">{i + 1}</span>
+                            </td>
+                            <td className="p-6">
+                              <div className="flex items-center gap-4">
+                                <div 
+                                  className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shadow-sm border border-slate-100"
+                                  style={{ backgroundColor: team.color }}
+                                >
+                                  {team.name.substring(0, 1)}
+                                </div>
+                                <span className={`text-lg font-medium ${
+                                  team.id === gameState.userTeamId ? 'text-emerald-600' : 'text-slate-700'
+                                }`}>
+                                  {team.name}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="p-6 text-center bg-slate-50/50">
+                              <span className="text-xl font-bold text-slate-900">{team.points}</span>
+                            </td>
+                            <td className="p-6 text-center">
+                              <span className="text-lg font-medium text-slate-600">{team.played}</span>
+                            </td>
+                            <td className="p-6 text-center">
+                              <span className="text-lg font-medium text-slate-600">{team.won}</span>
+                            </td>
+                            <td className="p-6 text-center">
+                              <span className="text-lg font-medium text-slate-600">{team.drawn}</span>
+                            </td>
+                            <td className="p-6 text-center">
+                              <span className="text-lg font-medium text-slate-600">{team.lost}</span>
+                            </td>
+                            <td className="p-6 text-center">
+                              <span className="text-lg font-medium text-slate-600">{team.gf}</span>
+                            </td>
+                            <td className="p-6 text-center">
+                              <span className="text-lg font-medium text-slate-600">{team.ga}</span>
+                            </td>
+                            <td className="p-6 text-center">
+                              <span className="text-lg font-medium text-slate-600">{team.gd > 0 ? `+${team.gd}` : team.gd}</span>
+                            </td>
+                            <td className="p-6">
+                              <div className="flex items-center justify-center gap-2">
+                                {(team.form || []).map((res, idx) => (
+                                  <div key={idx} className="flex items-center justify-center" title={res === 'W' ? 'Vitória' : res === 'D' ? 'Empate' : 'Derrota'}>
+                                    {res === 'W' && (
+                                      <div className="w-7 h-7 rounded-full bg-emerald-500 flex items-center justify-center text-white shadow-sm">
+                                        <CheckCircle2 className="w-4 h-4" />
+                                      </div>
+                                    )}
+                                    {res === 'L' && (
+                                      <div className="w-7 h-7 rounded-full bg-rose-500 flex items-center justify-center text-white shadow-sm">
+                                        <XCircle className="w-4 h-4" />
+                                      </div>
+                                    )}
+                                    {res === 'D' && (
+                                      <div className="w-7 h-7 rounded-full bg-slate-400 flex items-center justify-center text-white shadow-sm">
+                                        <MinusCircle className="w-4 h-4" />
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
+                                {(!team.form || team.form.length === 0) && (
+                                  <div className="flex gap-2">
+                                    {[1, 2, 3, 4, 5].map(n => (
+                                      <div key={n} className="w-7 h-7 rounded-full border border-slate-200 bg-slate-50" />
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  
+                  {/* Legend Section */}
+                  <div className="p-8 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-sm text-slate-500">
+                    <div className="flex gap-6">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full bg-emerald-500" />
+                        <span>Libertadores</span>
                       </div>
-                      
-                      <div className="braskick-card overflow-hidden p-0">
-                        <div className="overflow-x-auto">
-                          <table className="w-full text-left border-collapse">
-                            <thead>
-                              <tr className="bg-braskick-noite3/50 border-b border-braskick-noite3">
-                                <th className="p-4 font-display text-base text-braskick-muted w-12 text-center">#</th>
-                                <th className="p-4 font-display text-base text-braskick-muted">Equipe</th>
-                                <th className="p-4 font-display text-base text-braskick-muted text-center">P</th>
-                                <th className="p-4 font-display text-base text-braskick-muted text-center">J</th>
-                                <th className="p-4 font-display text-base text-braskick-muted text-center">V</th>
-                                <th className="p-4 font-display text-base text-braskick-muted text-center">E</th>
-                                <th className="p-4 font-display text-base text-braskick-muted text-center">D</th>
-                                <th className="p-4 font-display text-base text-braskick-muted text-center">SG</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {compStandings.map((team, i) => (
-                                <tr key={team.id} className={`border-b border-white/5 hover:bg-white/5 transition-colors ${team.id === gameState.userTeamId ? 'bg-braskick-verde/5' : ''}`}>
-                                  <td className="p-4 text-center font-display text-base text-braskick-muted">{i + 1}</td>
-                                  <td className="p-4 flex items-center gap-3">
-                                    <div className="w-2.5 h-2.5 rounded-full shadow-lg" style={{ backgroundColor: team.color }} />
-                                    <span className={`font-display text-lg ${team.id === gameState.userTeamId ? 'text-braskick-verde' : ''}`}>{team.name}</span>
-                                  </td>
-                                  <td className="p-4 text-center font-display text-xl text-braskick-ouro">{team.points}</td>
-                                  <td className="p-4 text-center font-display text-base text-braskick-muted">{team.played}</td>
-                                  <td className="p-4 text-center font-display text-base">{team.won}</td>
-                                  <td className="p-4 text-center font-display text-base">{team.drawn}</td>
-                                  <td className="p-4 text-center font-display text-base">{team.lost}</td>
-                                  <td className="p-4 text-center font-display text-base">{team.gd > 0 ? `+${team.gd}` : team.gd}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full bg-blue-500" />
+                        <span>Sul-Americana</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full bg-rose-500" />
+                        <span>Rebaixamento</span>
                       </div>
                     </div>
-                  );
-                })}
+                    <div>
+                      Última atualização: {new Date().toLocaleTimeString('pt-BR')}
+                    </div>
+                  </div>
+                </div>
               </motion.div>
             )}
 
@@ -803,23 +930,77 @@ export default function App() {
                 animate={{ opacity: 1, x: 0 }}
                 className="space-y-6"
               >
-                <div className="flex flex-wrap gap-2 pb-2 no-scrollbar overflow-x-auto">
-                  {COMPETITIONS.map(comp => (
-                    <button
-                      key={comp.id}
-                      onClick={() => setActiveCompetitionId(comp.id)}
-                      className={`px-4 py-2 rounded-xl font-display text-sm uppercase tracking-widest transition-all border ${
-                        activeCompetitionId === comp.id
-                          ? 'bg-braskick-verde text-braskick-noite border-braskick-verde shadow-lg shadow-braskick-verde/20'
-                          : 'bg-braskick-noite3/30 text-braskick-muted border-white/5 hover:bg-white/5'
-                      }`}
-                    >
-                      {comp.name}
-                    </button>
-                  ))}
+                <div className="flex items-center justify-between mb-2">
+                  <h2 className="font-display text-3xl tracking-tighter uppercase italic">Calendário da Temporada</h2>
+                  <div className="flex gap-2">
+                    {COMPETITIONS.map(comp => (
+                      <button
+                        key={comp.id}
+                        onClick={() => setActiveCompetitionId(comp.id)}
+                        className={`px-4 py-2 rounded-xl font-display text-xs uppercase tracking-widest transition-all border ${
+                          activeCompetitionId === comp.id
+                            ? 'bg-braskick-verde text-braskick-noite border-braskick-verde shadow-lg shadow-braskick-verde/20'
+                            : 'bg-braskick-noite3/30 text-braskick-muted border-white/5 hover:bg-white/5'
+                        }`}
+                      >
+                        {comp.name}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* FIFA Style Calendar Grid */}
+                <div className="grid grid-cols-7 gap-2">
+                  {['SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB', 'DOM'].map(day => (
+                    <div key={day} className="text-center text-[10px] font-bold text-braskick-muted uppercase tracking-widest py-2">
+                      {day}
+                    </div>
+                  ))}
+                  
+                  {Array.from({ length: 35 }, (_, i) => {
+                    const dayNum = i + 1;
+                    const weekNum = Math.ceil(dayNum / 7);
+                    const weekMatches = (gameState.matches || []).filter(m => m.week === weekNum && m.competitionId === activeCompetitionId);
+                    const isCurrentWeek = weekNum === gameState.currentWeek;
+                    const isPastWeek = weekNum < gameState.currentWeek;
+                    const hasUserMatch = weekMatches.some(m => m.homeTeamId === gameState.userTeamId || m.awayTeamId === gameState.userTeamId);
+                    
+                    // Só mostramos ícones nos dias de jogo (vamos assumir que jogos são no Sábado/Domingo para visual)
+                    const isMatchDay = i % 7 === 5 || i % 7 === 6;
+                    const match = isMatchDay ? weekMatches[i % 7 === 5 ? 0 : 1] : null;
+
+                    return (
+                      <div 
+                        key={i} 
+                        className={`aspect-square braskick-card p-2 flex flex-col justify-between relative group transition-all ${
+                          isCurrentWeek ? 'border-braskick-azul/50 bg-braskick-azul/5' : 'opacity-80'
+                        } ${isPastWeek ? 'grayscale-[0.5]' : ''}`}
+                      >
+                        <span className={`text-[10px] font-bold ${isCurrentWeek ? 'text-braskick-azul' : 'text-braskick-muted'}`}>{dayNum}</span>
+                        
+                        {isMatchDay && weekMatches.length > 0 && (
+                          <button 
+                            onClick={() => setSelectedCalendarMatch(match || weekMatches[0])}
+                            className="flex flex-col items-center gap-1 w-full hover:scale-110 transition-transform"
+                          >
+                            <div className="w-6 h-6 rounded-lg bg-braskick-noite flex items-center justify-center border border-white/5">
+                              <Zap className={`w-3 h-3 ${hasUserMatch ? 'text-braskick-verde' : 'text-braskick-ouro'}`} />
+                            </div>
+                            <span className="text-[8px] font-bold uppercase tracking-tighter text-center leading-none truncate w-full">
+                              RODADA {weekNum}
+                            </span>
+                          </button>
+                        )}
+
+                        {isCurrentWeek && i % 7 === (new Date().getDay() || 7) - 1 && (
+                          <div className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-braskick-azul animate-pulse" />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
                   {Array.from({ length: gameState.totalWeeks || 0 }, (_, i) => i + 1).map(week => {
                     const weekMatches = (gameState.matches || []).filter(m => m.week === week && m.competitionId === activeCompetitionId);
                   const isCurrent = week === gameState.currentWeek;
@@ -865,6 +1046,95 @@ export default function App() {
                     </div>
                   );
                 })}
+                </div>
+              </motion.div>
+            )}
+
+            {activeTab === 'market' && (
+              <motion.div 
+                key="market"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="space-y-6"
+              >
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <h2 className="font-display text-3xl tracking-tighter uppercase italic">Mercado de Transferências</h2>
+                  <div className="flex items-center gap-4">
+                    <div className="bg-braskick-noite/50 border border-white/5 rounded-2xl px-4 py-2 flex items-center gap-3">
+                      <DollarSign className="w-5 h-5 text-braskick-verde" />
+                      <span className="font-display text-xl text-braskick-verde">{formatMoney(userTeam?.budget || 0)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="md:col-span-3 relative">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-braskick-muted" />
+                    <input 
+                      type="text" 
+                      placeholder="Buscar jogador ou time..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-full bg-braskick-noite3/30 border border-white/5 rounded-2xl py-4 pl-12 pr-4 font-display text-lg focus:outline-none focus:border-braskick-verde/50 transition-all"
+                    />
+                  </div>
+                  <select 
+                    value={marketFilter}
+                    onChange={(e) => setMarketFilter(e.target.value as any)}
+                    className="bg-braskick-noite3/30 border border-white/5 rounded-2xl py-4 px-4 font-display text-lg focus:outline-none focus:border-braskick-verde/50 transition-all appearance-none"
+                  >
+                    <option value="all">Todas Posições</option>
+                    <option value="GK">Goleiros (GK)</option>
+                    <option value="DF">Defensores (DF)</option>
+                    <option value="MF">Meias (MF)</option>
+                    <option value="FW">Atacantes (FW)</option>
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {marketPlayers.map(({ player, team }) => (
+                    <div key={player.id} className="braskick-card group hover:border-braskick-verde/30 transition-all overflow-hidden p-0">
+                      <div className="p-5 flex items-center justify-between border-b border-white/5 bg-white/5">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl flex items-center justify-center font-display text-2xl text-white shadow-lg" style={{ backgroundColor: team.color }}>
+                            {player.overall}
+                          </div>
+                          <div>
+                            <h3 className="font-display text-xl leading-none mb-1">{player.name}</h3>
+                            <span className="text-[10px] font-bold text-braskick-muted uppercase tracking-widest">{player.position} • {player.age} ANOS</span>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-[10px] font-bold text-braskick-muted uppercase tracking-widest mb-1">{team.name}</div>
+                          <div className="w-2 h-2 rounded-full ml-auto" style={{ backgroundColor: team.color }} />
+                        </div>
+                      </div>
+                      <div className="p-5 flex items-center justify-between">
+                        <div>
+                          <div className="text-[10px] font-bold text-braskick-muted uppercase tracking-widest mb-1">Valor de Mercado</div>
+                          <div className="font-display text-xl text-braskick-ouro">{formatMoney(player.value)}</div>
+                        </div>
+                        <button 
+                          onClick={() => {
+                            if (userTeam && userTeam.budget >= player.value) {
+                              const success = useGameStore.getState().buyPlayer(player, team.id, userTeam.id, player.value);
+                              if (success) {
+                                setNews(prev => [`CONTRATAÇÃO: ${player.name} assinou com o ${userTeam.name}!`, ...prev]);
+                              }
+                            }
+                          }}
+                          disabled={!userTeam || userTeam.budget < player.value}
+                          className={`px-6 py-3 rounded-xl font-display text-sm uppercase tracking-widest transition-all ${
+                            !userTeam || userTeam.budget < player.value
+                              ? 'bg-white/5 text-braskick-muted cursor-not-allowed'
+                              : 'bg-braskick-verde text-white hover:bg-emerald-500 shadow-lg shadow-braskick-verde/20 active:scale-95'
+                          }`}
+                        >
+                          Contratar
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </motion.div>
             )}
@@ -931,6 +1201,64 @@ export default function App() {
 
       {/* Match Result Modal */}
       <AnimatePresence>
+        {selectedCalendarMatch && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-braskick-noite/95 backdrop-blur-md"
+            onClick={() => setSelectedCalendarMatch(null)}
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 30 }}
+              animate={{ scale: 1, y: 0 }}
+              className="bg-braskick-noite2 border border-braskick-noite3 rounded-[2.5rem] p-10 max-w-xl w-full shadow-2xl relative overflow-hidden"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="absolute top-0 left-0 w-full h-2 bg-braskick-azul" />
+              <div className="text-center mb-8">
+                <div className="font-display text-xl text-braskick-muted mb-2 tracking-widest uppercase">Detalhes da Partida</div>
+                <div className="text-[10px] font-bold text-braskick-azul uppercase tracking-[0.3em]">RODADA {selectedCalendarMatch.week} • {COMPETITIONS.find(c => c.id === selectedCalendarMatch.competitionId)?.name}</div>
+              </div>
+
+              <div className="flex items-center justify-around py-8 bg-braskick-noite/50 rounded-[2rem] border border-white/5 mb-8">
+                <TeamDisplay team={gameState?.teams.find(t => t.id === selectedCalendarMatch.homeTeamId)} />
+                <div className="font-display text-5xl italic">
+                  {selectedCalendarMatch.played ? (
+                    <div className="flex items-center gap-4">
+                      <span>{selectedCalendarMatch.homeScore}</span>
+                      <span className="text-braskick-noite3">-</span>
+                      <span>{selectedCalendarMatch.awayScore}</span>
+                    </div>
+                  ) : (
+                    <span className="text-braskick-noite3">VS</span>
+                  )}
+                </div>
+                <TeamDisplay team={gameState?.teams.find(t => t.id === selectedCalendarMatch.awayTeamId)} />
+              </div>
+
+              {selectedCalendarMatch.played && (
+                <div className="space-y-3 max-h-40 overflow-y-auto pr-2 custom-scrollbar mb-8">
+                  {selectedCalendarMatch.events.map((event, i) => (
+                    <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/5">
+                      <Zap className="w-4 h-4 text-braskick-ouro" />
+                      <span className="font-display text-lg flex-1">{event.playerName}</span>
+                      <span className="text-braskick-muted font-display text-lg">{event.minute}'</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <button 
+                onClick={() => setSelectedCalendarMatch(null)}
+                className="w-full py-4 bg-braskick-noite3 hover:bg-white/10 text-white font-display text-xl uppercase tracking-widest rounded-2xl transition-all"
+              >
+                FECHAR
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+
         {showMatchResult && lastMatchResult && (
           <motion.div 
             initial={{ opacity: 0 }}

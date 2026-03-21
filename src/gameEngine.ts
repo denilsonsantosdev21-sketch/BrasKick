@@ -40,7 +40,7 @@ export const COMPETITIONS: Competition[] = [
 ];
 
 const TEAM_DATA = [
-  // Brasileirão
+  // Brasileirão Série A (20 times)
   { name: "Flamengo", color: "#E30613", leagueId: 'br_a', overall: 82 },
   { name: "Palmeiras", color: "#006437", leagueId: 'br_a', overall: 81 },
   { name: "São Paulo", color: "#FE0000", leagueId: 'br_a', overall: 78 },
@@ -51,8 +51,18 @@ const TEAM_DATA = [
   { name: "Cruzeiro", color: "#005BAA", leagueId: 'br_a', overall: 75 },
   { name: "Vasco", color: "#000000", leagueId: 'br_a', overall: 74 },
   { name: "Fluminense", color: "#800000", leagueId: 'br_a', overall: 77 },
+  { name: "Botafogo", color: "#000000", leagueId: 'br_a', overall: 78 },
+  { name: "Santos", color: "#000000", leagueId: 'br_a', overall: 75 },
+  { name: "Bahia", color: "#0000FF", leagueId: 'br_a', overall: 74 },
+  { name: "Fortaleza", color: "#0000FF", leagueId: 'br_a', overall: 76 },
+  { name: "Athletico-PR", color: "#FF0000", leagueId: 'br_a', overall: 77 },
+  { name: "Cuiabá", color: "#006437", leagueId: 'br_a', overall: 72 },
+  { name: "Coritiba", color: "#006437", leagueId: 'br_a', overall: 71 },
+  { name: "Goiás", color: "#006437", leagueId: 'br_a', overall: 71 },
+  { name: "Bragantino", color: "#FFFFFF", leagueId: 'br_a', overall: 77 },
+  { name: "Vitória", color: "#FF0000", leagueId: 'br_a', overall: 72 },
   
-  // Premier League
+  // Premier League (20 times)
   { name: "Man City", color: "#6CABDD", leagueId: 'en_pl', overall: 88 },
   { name: "Arsenal", color: "#EF0107", leagueId: 'en_pl', overall: 85 },
   { name: "Liverpool", color: "#C8102E", leagueId: 'en_pl', overall: 86 },
@@ -61,14 +71,30 @@ const TEAM_DATA = [
   { name: "Tottenham", color: "#132257", leagueId: 'en_pl', overall: 80 },
   { name: "Newcastle", color: "#241F20", leagueId: 'en_pl', overall: 80 },
   { name: "Aston Villa", color: "#95BFE5", leagueId: 'en_pl', overall: 79 },
+  { name: "Brighton", color: "#0057B8", leagueId: 'en_pl', overall: 78 },
+  { name: "West Ham", color: "#7A263A", leagueId: 'en_pl', overall: 78 },
+  { name: "Brentford", color: "#E30613", leagueId: 'en_pl', overall: 76 },
+  { name: "Wolves", color: "#FDB913", leagueId: 'en_pl', overall: 76 },
+  { name: "Fulham", color: "#FFFFFF", leagueId: 'en_pl', overall: 75 },
+  { name: "Crystal Palace", color: "#1B458F", leagueId: 'en_pl', overall: 75 },
+  { name: "Everton", color: "#003399", leagueId: 'en_pl', overall: 74 },
+  { name: "Nott'm Forest", color: "#DD0000", leagueId: 'en_pl', overall: 73 },
+  { name: "Bournemouth", color: "#DA291C", leagueId: 'en_pl', overall: 73 },
+  { name: "Burnley", color: "#6C1D45", leagueId: 'en_pl', overall: 72 },
+  { name: "Sheffield Utd", color: "#EE2737", leagueId: 'en_pl', overall: 71 },
+  { name: "Luton Town", color: "#F78F1E", leagueId: 'en_pl', overall: 70 },
   
-  // La Liga
+  // La Liga (10 times - simplificado)
   { name: "Real Madrid", color: "#FFFFFF", leagueId: 'es_ll', overall: 89 },
   { name: "Barcelona", color: "#A50044", leagueId: 'es_ll', overall: 86 },
   { name: "Atlético Madrid", color: "#CB3524", leagueId: 'es_ll', overall: 83 },
   { name: "Real Sociedad", color: "#0067B1", leagueId: 'es_ll', overall: 80 },
   { name: "Sevilla", color: "#F43333", leagueId: 'es_ll', overall: 79 },
   { name: "Villarreal", color: "#FFE600", leagueId: 'es_ll', overall: 78 },
+  { name: "Betis", color: "#009146", leagueId: 'es_ll', overall: 78 },
+  { name: "Athletic Bilbao", color: "#EE2737", leagueId: 'es_ll', overall: 79 },
+  { name: "Valencia", color: "#FFFFFF", leagueId: 'es_ll', overall: 76 },
+  { name: "Girona", color: "#E30613", leagueId: 'es_ll', overall: 77 },
   
   // Champions League (Mixed Top Teams)
   { name: "Bayern Munich", color: "#DC052D", leagueId: 'eu_cl', overall: 87 },
@@ -77,6 +103,8 @@ const TEAM_DATA = [
   { name: "AC Milan", color: "#FB090B", leagueId: 'eu_cl', overall: 82 },
   { name: "Dortmund", color: "#FDE100", leagueId: 'eu_cl', overall: 81 },
   { name: "Benfica", color: "#E83030", leagueId: 'eu_cl', overall: 80 },
+  { name: "Napoli", color: "#003E7E", leagueId: 'eu_cl', overall: 82 },
+  { name: "Lazio", color: "#87D3F8", leagueId: 'eu_cl', overall: 79 },
   
   // Libertadores (Mixed Top SA Teams)
   { name: "River Plate", color: "#FFFFFF", leagueId: 'sa_lib', overall: 80 },
@@ -85,14 +113,8 @@ const TEAM_DATA = [
   { name: "LDU Quito", color: "#FFFFFF", leagueId: 'sa_lib', overall: 76 },
   { name: "Peñarol", color: "#FFD700", leagueId: 'sa_lib', overall: 75 },
   { name: "Colo-Colo", color: "#FFFFFF", leagueId: 'sa_lib', overall: 74 },
-  
-  // Sul-Americana (Mixed SA Teams)
-  { name: "Fortaleza", color: "#005BAA", leagueId: 'sa_sud', overall: 76 },
-  { name: "Athletico-PR", color: "#E30613", leagueId: 'sa_sud', overall: 77 },
-  { name: "Racing", color: "#6CABDD", leagueId: 'sa_sud', overall: 78 },
-  { name: "Independiente", color: "#E30613", leagueId: 'sa_sud', overall: 77 },
-  { name: "LDU Quito", color: "#FFFFFF", leagueId: 'sa_sud', overall: 75 },
-  { name: "Peñarol", color: "#FFD700", leagueId: 'sa_sud', overall: 74 }
+  { name: "Nacional", color: "#FFFFFF", leagueId: 'sa_lib', overall: 75 },
+  { name: "Olimpia", color: "#000000", leagueId: 'sa_lib', overall: 74 }
 ];
 
 // Gera os times iniciais
@@ -116,6 +138,7 @@ export const generateInitialTeams = (): Team[] => {
       gf: 0,
       ga: 0,
       gd: 0,
+      form: [],
       budget: 50000000 + Math.floor(Math.random() * 50000000),
       color: t.color
     };
@@ -239,7 +262,8 @@ export const updateStandings = (teams: Team[], match: Match): Team[] => {
         gf: team.gf + match.homeScore,
         ga: team.ga + match.awayScore,
         gd: team.gd + (match.homeScore - match.awayScore),
-        points: team.points + (won ? 3 : drawn ? 1 : 0)
+        points: team.points + (won ? 3 : drawn ? 1 : 0),
+        form: [...(team.form || []), (won ? 'W' : drawn ? 'D' : 'L') as 'W' | 'D' | 'L'].slice(-5)
       };
     }
 
@@ -257,7 +281,8 @@ export const updateStandings = (teams: Team[], match: Match): Team[] => {
         gf: team.gf + match.awayScore,
         ga: team.ga + match.homeScore,
         gd: team.gd + (match.awayScore - match.homeScore),
-        points: team.points + (won ? 3 : drawn ? 1 : 0)
+        points: team.points + (won ? 3 : drawn ? 1 : 0),
+        form: [...(team.form || []), (won ? 'W' : drawn ? 'D' : 'L') as 'W' | 'D' | 'L'].slice(-5)
       };
     }
 
@@ -277,6 +302,7 @@ export const resetTeamsForNewSeason = (teams: Team[]): Team[] => {
     gf: 0,
     ga: 0,
     gd: 0,
+    form: [],
     players: team.players.map(player => {
       // Jogadores envelhecem e podem melhorar ou piorar levemente
       const age = player.age + 1;

@@ -15,6 +15,8 @@ interface GameStore {
   nextSeason: (newTeams: Team[], newSchedule: Match[]) => void;
   adicionarMoedas: (n: number) => void;
   gastarMoedas: (n: number) => boolean;
+  buyPlayer: (player: Player, fromTeamId: string, toTeamId: string, price: number) => boolean;
+  sellPlayer: (player: Player, fromTeamId: string, price: number) => void;
   resetGame: () => void;
 }
 
@@ -58,6 +60,67 @@ export const useGameStore = create<GameStore>()(
       })),
 
       adicionarMoedas: (n) => set((state) => ({ moedas: state.moedas + n })),
+
+      buyPlayer: (player, fromTeamId, toTeamId, price) => {
+        const { gameState } = get();
+        if (!gameState) return false;
+
+        const buyerTeam = gameState.teams.find(t => t.id === toTeamId);
+        if (!buyerTeam || buyerTeam.budget < price) return false;
+
+        const updatedTeams = gameState.teams.map(team => {
+          if (team.id === fromTeamId) {
+            return {
+              ...team,
+              players: team.players.filter(p => p.id !== player.id),
+              budget: team.budget + price
+            };
+          }
+          if (team.id === toTeamId) {
+            const newPlayers = [...team.players, player];
+            // Recalcular stats do time
+            const avgOverall = Math.round(newPlayers.reduce((acc, p) => acc + p.overall, 0) / newPlayers.length);
+            const attack = Math.round(newPlayers.filter(p => p.position === 'FW' || p.position === 'MF').reduce((acc, p) => acc + p.overall, 0) / Math.max(1, newPlayers.filter(p => p.position === 'FW' || p.position === 'MF').length));
+            const defense = Math.round(newPlayers.filter(p => p.position === 'DF' || p.position === 'GK').reduce((acc, p) => acc + p.overall, 0) / Math.max(1, newPlayers.filter(p => p.position === 'DF' || p.position === 'GK').length));
+            
+            return {
+              ...team,
+              players: newPlayers,
+              budget: team.budget - price,
+              overall: avgOverall,
+              attack: attack || avgOverall,
+              defense: defense || avgOverall
+            };
+          }
+          return team;
+        });
+
+        set({ gameState: { ...gameState, teams: updatedTeams } });
+        return true;
+      },
+
+      sellPlayer: (player, fromTeamId, price) => {
+        const { gameState } = get();
+        if (!gameState) return;
+
+        const updatedTeams = gameState.teams.map(team => {
+          if (team.id === fromTeamId) {
+            const newPlayers = team.players.filter(p => p.id !== player.id);
+            // Recalcular stats do time
+            const avgOverall = newPlayers.length > 0 ? Math.round(newPlayers.reduce((acc, p) => acc + p.overall, 0) / newPlayers.length) : 0;
+            
+            return {
+              ...team,
+              players: newPlayers,
+              budget: team.budget + price,
+              overall: avgOverall || team.overall
+            };
+          }
+          return team;
+        });
+
+        set({ gameState: { ...gameState, teams: updatedTeams } });
+      },
 
       gastarMoedas: (n) => {
         const { moedas } = get();
