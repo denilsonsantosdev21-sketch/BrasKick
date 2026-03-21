@@ -28,7 +28,8 @@ import {
   MinusCircle,
   ChevronDown,
   RotateCcw,
-  AlertTriangle
+  AlertTriangle,
+  LogOut
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Team, Match, Player, GameState } from './types';
@@ -559,7 +560,10 @@ export default function App() {
           {user && (
             <div className="absolute top-6 right-6 flex items-center gap-4">
               <span className="text-xs text-braskick-muted font-bold uppercase tracking-widest">{user.email}</span>
-              <button onClick={handleLogout} className="text-xs text-red-400 hover:text-red-300 font-bold uppercase tracking-widest">Sair</button>
+              <button onClick={handleLogout} className="flex items-center gap-2 text-xs text-red-400 hover:text-red-300 font-bold uppercase tracking-widest transition-colors">
+                <LogOut className="w-3 h-3" />
+                Sair
+              </button>
             </div>
           )}
           <div className="mb-8 inline-flex items-center justify-center w-24 h-24 bg-braskick-verde/10 border border-braskick-verde/20 rounded-3xl shadow-[0_0_50px_-12px_rgba(0,156,59,0.3)]">
@@ -670,9 +674,9 @@ export default function App() {
             )}
             <button 
               onClick={handleLogout}
-              className="w-full flex items-center justify-center gap-2 py-3 text-braskick-muted hover:text-red-400 transition-colors font-display text-sm uppercase tracking-widest"
+              className="w-full flex items-center justify-center gap-2 py-3 text-red-400 hover:text-red-300 transition-colors font-display text-sm uppercase tracking-widest border border-red-500/10 rounded-xl mb-2 bg-red-500/5"
             >
-              <Settings className="w-4 h-4" />
+              <LogOut className="w-4 h-4" />
               SAIR DA CONTA
             </button>
             <button 
