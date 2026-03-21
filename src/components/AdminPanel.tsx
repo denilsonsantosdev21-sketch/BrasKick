@@ -12,7 +12,8 @@ import {
   ChevronLeft,
   X,
   Edit2,
-  Globe
+  Globe,
+  Search
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Competition, Team, Player } from '../types';
@@ -128,7 +129,6 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
             onClick={() => setActiveTab('players')}
             icon={<Users className="w-5 h-5" />}
             label="Jogadores"
-            disabled={!selectedTeamId}
           />
         </aside>
 
@@ -334,7 +334,7 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
               </motion.div>
             )}
 
-            {activeTab === 'players' && selectedTeam && (
+            {activeTab === 'players' && (
               <motion.div 
                 key="players"
                 initial={{ opacity: 0, x: 20 }}
@@ -342,59 +342,109 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                 exit={{ opacity: 0, x: -20 }}
                 className="space-y-8"
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <button 
-                      onClick={() => { setActiveTab('teams'); setSelectedTeamId(null); }}
-                      className="p-2 hover:bg-white/5 rounded-xl transition-colors"
-                    >
-                      <ChevronLeft className="w-6 h-6" />
-                    </button>
-                    <div>
-                      <h2 className="font-display text-3xl uppercase tracking-widest">Elenco: {selectedTeam.name}</h2>
-                      <div className="text-braskick-muted text-xs font-bold uppercase tracking-widest mt-1">
-                        {players.length} Jogadores no elenco
+                {!selectedTeam ? (
+                  <div className="space-y-6">
+                    <div className="flex items-center justify-between">
+                      <h2 className="font-display text-3xl uppercase tracking-widest">Selecione um Time</h2>
+                      <div className="relative w-64">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-braskick-muted" />
+                        <input 
+                          type="text" 
+                          placeholder="Buscar time..."
+                          className="w-full bg-white/5 border border-white/10 rounded-xl py-2 pl-10 pr-4 text-sm outline-none focus:border-braskick-verde transition-all"
+                          onChange={(e) => {
+                            const term = e.target.value.toLowerCase();
+                            const cards = document.querySelectorAll('.team-select-card');
+                            cards.forEach((card: any) => {
+                              const name = card.getAttribute('data-name').toLowerCase();
+                              if (name.includes(term)) {
+                                card.style.display = 'block';
+                              } else {
+                                card.style.display = 'none';
+                              }
+                            });
+                          }}
+                        />
                       </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                      {gameState.teams.map(team => (
+                        <button 
+                          key={team.id} 
+                          onClick={() => setSelectedTeamId(team.id)}
+                          data-name={team.name}
+                          className="team-select-card braskick-card group text-left hover:border-braskick-verde/50 transition-all"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div 
+                              className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-display text-xl shadow-lg"
+                              style={{ backgroundColor: team.color }}
+                            >
+                              {team.logo ? <img src={team.logo} alt="" className="w-full h-full object-contain rounded-lg" referrerPolicy="no-referrer" /> : team.name.substring(0, 1)}
+                            </div>
+                            <div className="font-display text-lg leading-none">{team.name}</div>
+                          </div>
+                        </button>
+                      ))}
                     </div>
                   </div>
-                  <button 
-                    onClick={() => setEditingItem({ name: '', position: 'FW', overall: 70, age: 20, value: 1000000, goals: 0, assists: 0 })}
-                    className="braskick-button-primary flex items-center gap-2"
-                  >
-                    <Plus className="w-5 h-5" /> NOVO JOGADOR
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                  {players.map(player => (
-                    <div key={player.id} className="braskick-card group">
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4">
-                        <div className="w-16 h-16 bg-white/5 rounded-2xl overflow-hidden flex-shrink-0">
-                          {player.photo ? (
-                            <img src={player.photo} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center">
-                              <Users className="w-8 h-8 text-braskick-muted" />
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="font-display text-lg truncate leading-none mb-1">{player.name}</div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-[10px] font-bold text-braskick-verde uppercase tracking-widest">{player.position}</span>
-                            <span className="text-[10px] font-bold text-braskick-muted uppercase tracking-widest">OVR {player.overall}</span>
+                        <button 
+                          onClick={() => setSelectedTeamId(null)}
+                          className="p-2 hover:bg-white/5 rounded-xl transition-colors"
+                        >
+                          <ChevronLeft className="w-6 h-6" />
+                        </button>
+                        <div>
+                          <h2 className="font-display text-3xl uppercase tracking-widest">Elenco: {selectedTeam.name}</h2>
+                          <div className="text-braskick-muted text-xs font-bold uppercase tracking-widest mt-1">
+                            {players.length} Jogadores no elenco
                           </div>
                         </div>
-                        <button 
-                          onClick={() => setEditingItem(player)}
-                          className="p-2 hover:bg-white/5 rounded-lg transition-colors text-braskick-muted hover:text-white"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
                       </div>
+                      <button 
+                        onClick={() => setEditingItem({ name: '', position: 'FW', overall: 70, age: 20, value: 1000000, goals: 0, assists: 0 })}
+                        className="braskick-button-primary flex items-center gap-2"
+                      >
+                        <Plus className="w-5 h-5" /> NOVO JOGADOR
+                      </button>
                     </div>
-                  ))}
-                </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                      {players.map(player => (
+                        <div key={player.id} className="braskick-card group">
+                          <div className="flex items-center gap-4">
+                            <div className="w-16 h-16 bg-white/5 rounded-2xl overflow-hidden flex-shrink-0">
+                              {player.photo ? (
+                                <img src={player.photo} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center">
+                                  <Users className="w-8 h-8 text-braskick-muted" />
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="font-display text-lg truncate leading-none mb-1">{player.name}</div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] font-bold text-braskick-verde uppercase tracking-widest">{player.position}</span>
+                                <span className="text-[10px] font-bold text-braskick-muted uppercase tracking-widest">OVR {player.overall}</span>
+                              </div>
+                            </div>
+                            <button 
+                              onClick={() => setEditingItem(player)}
+                              className="p-2 hover:bg-white/5 rounded-lg transition-colors text-braskick-muted hover:text-white"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
               </motion.div>
             )}
           </AnimatePresence>
