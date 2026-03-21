@@ -734,7 +734,7 @@ export default function App() {
 
       {/* Sidebar */}
       <aside className={`fixed inset-y-0 left-0 z-50 w-72 bg-braskick-noite2 border-r border-braskick-noite3 transform transition-transform duration-300 lg:relative lg:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-        <div className="p-6 flex flex-col h-full">
+        <div className="p-6 flex flex-col h-full overflow-y-auto custom-scrollbar">
           <div className="flex items-center gap-3 mb-10">
             <div className="w-10 h-10 bg-braskick-verde rounded-xl flex items-center justify-center shadow-lg shadow-braskick-verde/20">
               <Trophy className="w-6 h-6 text-white" />

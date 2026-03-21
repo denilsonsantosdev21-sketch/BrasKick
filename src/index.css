@@ -54,4 +54,16 @@
   ::-webkit-scrollbar-thumb {
     @apply bg-braskick-noite3 rounded-full hover:bg-braskick-noite2 transition-colors;
   }
+
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-braskick-verde/20 rounded-full hover:bg-braskick-verde/40 transition-colors;
+  }
 }
