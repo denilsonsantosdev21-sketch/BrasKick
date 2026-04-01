@@ -57,6 +57,20 @@ export default function App() {
   const [activeCompetitionId, setActiveCompetitionId] = useState<string>('f9e8d7c6-b5a4-4321-8765-432109876543');
   const [searchTerm, setSearchTerm] = useState('');
   const [marketFilter, setMarketFilter] = useState<'all' | 'GK' | 'DF' | 'MF' | 'FW'>('all');
+  const [historySort, setHistorySort] = useState<'round' | 'date'>('round');
+
+  const sortedHistory = useMemo(() => {
+    const history = [...(gameState?.history || [])];
+    if (historySort === 'round') {
+      return history.sort((a, b) => b.week - a.week);
+    } else {
+      return history.sort((a, b) => {
+        const dateA = a.date ? new Date(a.date).getTime() : 0;
+        const dateB = b.date ? new Date(b.date).getTime() : 0;
+        return dateB - dateA;
+      });
+    }
+  }, [gameState?.history, historySort]);
   const [isSimulating, setIsSimulating] = useState(false);
   const [lastMatchResult, setLastMatchResult] = useState<Match | null>(null);
   const [showMatchResult, setShowMatchResult] = useState(false);
@@ -296,7 +310,8 @@ export default function App() {
         totalWeeks: Math.max(...schedule.map(m => m.week)),
         season: 1,
         matches: schedule,
-        history: []
+        history: [],
+        coins: 0
       };
       setGameState(newState);
       setActiveCompetitionId(selectedTeam.leagueId);
@@ -675,7 +690,8 @@ export default function App() {
                       totalWeeks: Math.max(...schedule.map(m => m.week)),
                       season: 1,
                       matches: schedule,
-                      history: []
+                      history: [],
+                      coins: 0
                     });
                   }
                   setShowAdminPanel(true);
@@ -1007,6 +1023,7 @@ export default function App() {
                   <table className="w-full text-left border-collapse">
                     <thead>
                       <tr className="bg-braskick-noite3/50 border-b border-braskick-noite3">
+                        <th className="p-5 font-display text-lg text-braskick-muted uppercase tracking-widest text-center">#</th>
                         <th className="p-5 font-display text-lg text-braskick-muted uppercase tracking-widest">Jogador</th>
                         <th className="p-5 font-display text-lg text-braskick-muted uppercase tracking-widest text-center">Nac</th>
                         <th className="p-5 font-display text-lg text-braskick-muted uppercase tracking-widest text-center">Pos</th>
@@ -1020,6 +1037,11 @@ export default function App() {
                     <tbody>
                       {userTeam?.players.map(player => (
                         <tr key={player.id} className="border-b border-white/5 hover:bg-white/5 transition-colors group">
+                          <td className="p-5 text-center">
+                            <div className="w-8 h-8 rounded-lg flex items-center justify-center font-display text-lg shadow-lg mx-auto" style={{ backgroundColor: userTeam?.color, color: (userTeam?.color.toLowerCase() === '#ffffff' || userTeam?.color.toLowerCase() === 'white') ? '#000000' : '#ffffff' }}>
+                              {player.number || '-'}
+                            </div>
+                          </td>
                           <td className="p-5">
                             <div className="flex items-center gap-3">
                               <div className="w-10 h-10 rounded-full bg-braskick-noite3 border border-white/10 overflow-hidden flex-shrink-0">
@@ -1035,7 +1057,7 @@ export default function App() {
                             </div>
                           </td>
                           <td className="p-5 text-center">
-                            <span className="text-xl" title={player.nationality}>{player.nationality === 'Brasil' ? '🇧🇷' : player.nationality === 'Argentina' ? '🇦🇷' : '🌍'}</span>
+                            <span className="font-display text-sm text-braskick-muted">{player.nationality}</span>
                           </td>
                           <td className="p-5 text-center">
                             <span className={`font-display text-sm px-3 py-1 rounded-full ${
@@ -1053,8 +1075,8 @@ export default function App() {
                           </td>
                           <td className="p-5 text-center">
                             <div className="flex items-center justify-center gap-2">
-                              {player.isInjured && <AlertTriangle className="w-5 h-5 text-red-500" title="Machucado" />}
-                              {player.isSuspended && <XCircle className="w-5 h-5 text-red-600" title="Suspenso" />}
+                              {player.isInjured && <AlertTriangle className="w-5 h-5 text-red-500" />}
+                              {player.isSuspended && <XCircle className="w-5 h-5 text-red-600" />}
                               {!player.isInjured && !player.isSuspended && <CheckCircle2 className="w-5 h-5 text-braskick-verde opacity-30" />}
                             </div>
                           </td>
@@ -1413,7 +1435,7 @@ export default function App() {
                           </div>
                           <div>
                             <h3 className="font-display text-xl leading-none mb-1">{player.name}</h3>
-                            <span className="text-[10px] font-bold text-braskick-muted uppercase tracking-widest">{player.position} • {player.age} ANOS</span>
+                            <span className="text-[10px] font-bold text-braskick-muted uppercase tracking-widest">{player.position} • {player.age} ANOS • {player.nationality}</span>
                           </div>
                         </div>
                         <div className="text-right">
@@ -1461,18 +1483,28 @@ export default function App() {
                 <div className="flex items-center justify-between">
                   <h2 className="font-display text-3xl tracking-tighter uppercase italic">Histórico de Partidas</h2>
                   <div className="flex gap-2">
-                    <button className="px-4 py-2 rounded-xl bg-white/5 text-xs font-bold uppercase tracking-widest hover:bg-white/10 transition-all">Por Rodada</button>
-                    <button className="px-4 py-2 rounded-xl bg-white/5 text-xs font-bold uppercase tracking-widest hover:bg-white/10 transition-all">Por Data</button>
+                    <button 
+                      onClick={() => setHistorySort('round')}
+                      className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${historySort === 'round' ? 'bg-braskick-verde text-braskick-noite' : 'bg-white/5 text-braskick-muted hover:bg-white/10'}`}
+                    >
+                      Por Rodada
+                    </button>
+                    <button 
+                      onClick={() => setHistorySort('date')}
+                      className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${historySort === 'date' ? 'bg-braskick-verde text-braskick-noite' : 'bg-white/5 text-braskick-muted hover:bg-white/10'}`}
+                    >
+                      Por Data
+                    </button>
                   </div>
                 </div>
 
-                {(gameState.history || []).length === 0 ? (
+                {(sortedHistory || []).length === 0 ? (
                   <div className="braskick-card p-20 text-center">
                     <HistoryIcon className="w-16 h-16 text-braskick-noite3 mx-auto mb-6" />
                     <p className="text-braskick-muted font-display text-2xl uppercase tracking-widest">NENHUMA PARTIDA DISPUTADA</p>
                   </div>
                 ) : (
-                  (gameState.history || []).map(match => {
+                  (sortedHistory || []).map(match => {
                     const home = gameState.teams.find(t => t.id === match.homeTeamId);
                     const away = gameState.teams.find(t => t.id === match.awayTeamId);
                     if (!home || !away) return null;
@@ -1490,8 +1522,15 @@ export default function App() {
                             {userWon ? 'VITÓRIA' : userLost ? 'DERROTA' : 'EMPATE'}
                           </div>
                         )}
-                        <div className="flex flex-col gap-1 w-32">
+                        <div className="flex flex-col gap-1 w-40">
                           <span className="font-display text-lg text-braskick-muted uppercase">RODADA {match.week}</span>
+                          {match.date && (
+                            <span className="text-[10px] font-bold text-braskick-muted uppercase tracking-widest">
+                              {new Date(match.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex flex-col gap-1 w-32">
                           <span className="text-[10px] font-bold text-braskick-azul uppercase tracking-widest">
                             {COMPETITIONS.find(c => c.id === match.competitionId)?.name}
                           </span>

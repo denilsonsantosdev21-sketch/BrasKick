@@ -58,30 +58,186 @@ const calculatePlayerValue = (overall: number, age: number): number => {
   return Math.round(baseValue * ageFactor);
 };
 
+const positionMap: Record<string, 'GK' | 'DF' | 'MF' | 'FW'> = {
+  'GOL': 'GK',
+  'ZAG': 'DF',
+  'LD': 'DF',
+  'LE': 'DF',
+  'VOL': 'MF',
+  'MC': 'MF',
+  'MEI': 'MF',
+  'MD': 'MF',
+  'ME': 'MF',
+  'ATA': 'FW',
+  'PD': 'FW',
+  'PE': 'FW'
+};
+
+const REAL_PLAYERS_DATA: Record<string, any[]> = {
+  "Liverpool": [
+    { name: "Mohamed Salah", nationality: "Egito", position: "MF", overall: 91 },
+    { name: "Virgil van Dijk", nationality: "Holanda", position: "DF", overall: 90 },
+    { name: "Alisson", nationality: "Brasil", position: "GK", overall: 89 },
+    { name: "Florian Wirtz", nationality: "Alemanha", position: "MF", overall: 89 },
+    { name: "Alexander Isak", nationality: "Suécia", position: "FW", overall: 88 },
+    { name: "Alexis Mac Allister", nationality: "Argentina", position: "MF", overall: 87 },
+    { name: "Ibrahima Konaté", nationality: "França", position: "DF", overall: 86 },
+    { name: "Trent Alexander-Arnold", nationality: "Inglaterra", position: "DF", overall: 86 },
+    { name: "Ryan Gravenberch", nationality: "Holanda", position: "MF", overall: 85 },
+    { name: "Luis Díaz", nationality: "Colômbia", position: "MF", overall: 85 },
+    { name: "Giorgi Mamardashvili", nationality: "Geórgia", position: "GK", overall: 84 },
+    { name: "Cody Gakpo", nationality: "Holanda", position: "MF", overall: 84 },
+    { name: "Andrew Robertson", nationality: "Escócia", position: "DF", overall: 84 },
+    { name: "Darwin Núñez", nationality: "Uruguai", position: "FW", overall: 83 },
+    { name: "Diogo Jota", nationality: "Portugal", position: "FW", overall: 83 },
+    { name: "Harvey Elliott", nationality: "Inglaterra", position: "MF", overall: 79 },
+    { name: "Conor Bradley", nationality: "Irlanda do Norte", position: "DF", overall: 80 }
+  ],
+  "Man City": [
+    { name: "Rodri", nationality: "Espanha", position: "MF", overall: 90 },
+    { name: "Erling Haaland", nationality: "Noruega", position: "FW", overall: 90 },
+    { name: "Gianluigi Donnarumma", nationality: "Itália", position: "GK", overall: 89 },
+    { name: "Rúben Dias", nationality: "Portugal", position: "DF", overall: 86 },
+    { name: "Tijjani Reijnders", nationality: "Holanda", position: "MF", overall: 86 },
+    { name: "Phil Foden", nationality: "Inglaterra", position: "FW", overall: 85 },
+    { name: "Joško Gvardiol", nationality: "Croácia", position: "DF", overall: 84 },
+    { name: "Bernardo Silva", nationality: "Portugal", position: "MF", overall: 84 },
+    { name: "Omar Marmoush", nationality: "Egito", position: "FW", overall: 84 },
+    { name: "Mateo Kovačić", nationality: "Croácia", position: "MF", overall: 83 },
+    { name: "Manuel Akanji", nationality: "Suíça", position: "DF", overall: 83 },
+    { name: "Kevin De Bruyne", nationality: "Bélgica", position: "MF", overall: 83 },
+    { name: "Ilkay Gündogan", nationality: "Alemanha", position: "MF", overall: 83 },
+    { name: "Rico Lewis", nationality: "Inglaterra", position: "DF", overall: 81 },
+    { name: "Ederson", nationality: "Brasil", position: "GK", overall: 80 },
+    { name: "Jeremy Doku", nationality: "Bélgica", position: "FW", overall: 80 },
+    { name: "Savinho", nationality: "Brasil", position: "MF", overall: 79 }
+  ],
+  "Arsenal": [
+    { name: "Gabriel", nationality: "Brasil", position: "DF", overall: 88 },
+    { name: "Bukayo Saka", nationality: "Inglaterra", position: "FW", overall: 88 },
+    { name: "Declan Rice", nationality: "Inglaterra", position: "MF", overall: 87 },
+    { name: "William Saliba", nationality: "França", position: "DF", overall: 87 },
+    { name: "Martin Ødegaard", nationality: "Noruega", position: "MF", overall: 87 },
+    { name: "David Raya", nationality: "Espanha", position: "GK", overall: 87 },
+    { name: "Viktor Gyökeres", nationality: "Suécia", position: "FW", overall: 87 },
+    { name: "Mikel Merino", nationality: "Espanha", position: "MF", overall: 83 },
+    { name: "Zubimendi", nationality: "Espanha", position: "MF", overall: 83 },
+    { name: "Eberechi Eze", nationality: "Inglaterra", position: "MF", overall: 83 },
+    { name: "Piero Hincapié", nationality: "Equador", position: "DF", overall: 83 },
+    { name: "Ben White", nationality: "Inglaterra", position: "DF", overall: 82 },
+    { name: "Thomas Partey", nationality: "Gana", position: "MF", overall: 81 },
+    { name: "Leandro Trossard", nationality: "Bélgica", position: "MF", overall: 81 },
+    { name: "Gabriel Martinelli", nationality: "Brasil", position: "FW", overall: 80 },
+    { name: "Jakub Kiwior", nationality: "Polônia", position: "DF", overall: 79 },
+    { name: "Riccardo Calafiori", nationality: "Itália", position: "DF", overall: 79 },
+    { name: "Myles Lewis-Skelly", nationality: "Inglaterra", position: "DF", overall: 77 }
+  ],
+  "Chelsea": [
+    { name: "Cole Palmer", nationality: "Inglaterra", position: "MF", overall: 87 },
+    { name: "Moisés Caicedo", nationality: "Equador", position: "MF", overall: 87 },
+    { name: "Marc Cucurella", nationality: "Espanha", position: "DF", overall: 84 },
+    { name: "Enzo Fernández", nationality: "Argentina", position: "MF", overall: 84 },
+    { name: "Reece James", nationality: "Inglaterra", position: "DF", overall: 81 },
+    { name: "Andrey Santos", nationality: "Brasil", position: "MF", overall: 80 },
+    { name: "Pedro Neto", nationality: "Portugal", position: "MF", overall: 80 },
+    { name: "Levi Colwill", nationality: "Inglaterra", position: "DF", overall: 80 },
+    { name: "Nicolas Jackson", nationality: "Senegal", position: "FW", overall: 80 },
+    { name: "Malo Gusto", nationality: "França", position: "DF", overall: 79 },
+    { name: "Trevoh Chalobah", nationality: "Inglaterra", position: "DF", overall: 79 },
+    { name: "Noni Madueke", nationality: "Inglaterra", position: "MF", overall: 79 },
+    { name: "Mykhailo Mudryk", nationality: "Ucrânia", position: "MF", overall: 79 },
+    { name: "Benoît Badiashile", nationality: "França", position: "DF", overall: 79 },
+    { name: "Roméo Lavia", nationality: "Bélgica", position: "MF", overall: 79 },
+    { name: "Tosin Adarabioyo", nationality: "Inglaterra", position: "DF", overall: 78 }
+  ],
+  "Napoli": [
+    { name: "Kevin De Bruyne", nationality: "Bélgica", position: "MF", overall: 87 },
+    { name: "Khvicha Kvaratskhelia", nationality: "Geórgia", position: "FW", overall: 87 },
+    { name: "Scott McTominay", nationality: "Escócia", position: "MF", overall: 85 },
+    { name: "Romelu Lukaku", nationality: "Bélgica", position: "FW", overall: 84 },
+    { name: "Giovanni Di Lorenzo", nationality: "Itália", position: "DF", overall: 83 },
+    { name: "Stanislav Lobotka", nationality: "Eslováquia", position: "MF", overall: 83 },
+    { name: "Amir Rrahmani", nationality: "Kosovo", position: "DF", overall: 83 },
+    { name: "André Zambo Anguissa", nationality: "Camarões", position: "MF", overall: 82 },
+    { name: "Alex Meret", nationality: "Itália", position: "GK", overall: 82 },
+    { name: "Alessandro Buongiorno", nationality: "Itália", position: "DF", overall: 82 },
+    { name: "David Neres", nationality: "Brasil", position: "MF", overall: 82 },
+    { name: "Miguel Gutiérrez", nationality: "Espanha", position: "DF", overall: 81 },
+    { name: "Matteo Politano", nationality: "Itália", position: "MF", overall: 80 },
+    { name: "Leonardo Spinazzola", nationality: "Itália", position: "DF", overall: 79 },
+    { name: "Billy Gilmour", nationality: "Escócia", position: "MF", overall: 78 }
+  ],
+  "Roma": [
+    { name: "Paulo Dybala", nationality: "Argentina", position: "MF", overall: 86 },
+    { name: "Artem Dovbyk", nationality: "Ucrânia", position: "FW", overall: 83 },
+    { name: "Gianluca Mancini", nationality: "Itália", position: "DF", overall: 83 },
+    { name: "Mile Svilar", nationality: "Sérvia", position: "GK", overall: 82 },
+    { name: "Evan Ndicka", nationality: "Costa do Marfim", position: "DF", overall: 81 },
+    { name: "Lorenzo Pellegrini", nationality: "Itália", position: "MF", overall: 80 },
+    { name: "Bryan Cristante", nationality: "Itália", position: "MF", overall: 80 },
+    { name: "Mario Hermoso", nationality: "Espanha", position: "DF", overall: 80 },
+    { name: "Kouadio Koné", nationality: "França", position: "MF", overall: 79 },
+    { name: "Angeliño", nationality: "Espanha", position: "DF", overall: 79 },
+    { name: "Stephan El Shaarawy", nationality: "Itália", position: "MF", overall: 79 },
+    { name: "Leon Bailey", nationality: "Jamaica", position: "MF", overall: 79 },
+    { name: "Leandro Paredes", nationality: "Argentina", position: "MF", overall: 79 },
+    { name: "Matías Soulé", nationality: "Argentina", position: "MF", overall: 78 },
+    { name: "Devyne Rensch", nationality: "Holanda", position: "DF", overall: 77 }
+  ]
+};
+
 // Gera um elenco inicial para um time
-const generateSquad = (teamOverall: number, playerCount: number = 11): Player[] => {
+const generateSquad = (teamOverall: number, playerCount: number = 11, teamName?: string): Player[] => {
   const squad: Player[] = [];
-  const basePositions: ('GK' | 'DF' | 'MF' | 'FW')[] = ['GK', 'DF', 'DF', 'DF', 'DF', 'MF', 'MF', 'MF', 'MF', 'FW', 'FW'];
-  
-  for (let i = 0; i < playerCount; i++) {
-    const pos = basePositions[i % basePositions.length];
-    const playerOverall = teamOverall + Math.floor(Math.random() * 11) - 5;
-    const age = 17 + Math.floor(Math.random() * 18);
-    const country = countries[Math.floor(Math.random() * countries.length)];
+
+  // Se houver jogadores reais para este time, usa eles primeiro
+  if (teamName && REAL_PLAYERS_DATA[teamName]) {
+    const realPlayers = REAL_PLAYERS_DATA[teamName];
+    for (const p of realPlayers) {
+      if (squad.length >= playerCount) break;
+      const age = 18 + Math.floor(Math.random() * 15);
+      squad.push({
+        id: generateUUID(),
+        name: p.name,
+        position: p.position as any,
+        overall: p.overall,
+        age: age,
+        value: calculatePlayerValue(p.overall, age),
+        goals: 0,
+        assists: 0,
+        number: squad.length + 1,
+        nationality: p.nationality,
+        isInjured: false,
+        isSuspended: false
+      });
+    }
+  }
+
+  const remainingCount = playerCount - squad.length;
+  if (remainingCount > 0) {
+    const basePositions: ('GK' | 'DF' | 'MF' | 'FW')[] = ['GK', 'DF', 'DF', 'DF', 'DF', 'MF', 'MF', 'MF', 'MF', 'FW', 'FW'];
     
-    squad.push({
-      id: generateUUID(),
-      name: generatePlayerName(),
-      position: pos,
-      overall: playerOverall,
-      age: age,
-      value: calculatePlayerValue(playerOverall, age),
-      goals: 0,
-      assists: 0,
-      nationality: country.name,
-      isInjured: false,
-      isSuspended: false
-    });
+    for (let i = 0; i < remainingCount; i++) {
+      const pos = basePositions[i % basePositions.length];
+      const playerOverall = teamOverall + Math.floor(Math.random() * 11) - 5;
+      const age = 17 + Math.floor(Math.random() * 18);
+      const country = countries[Math.floor(Math.random() * countries.length)];
+      
+      squad.push({
+        id: generateUUID(),
+        name: generatePlayerName(),
+        position: pos,
+        overall: playerOverall,
+        age: age,
+        value: calculatePlayerValue(playerOverall, age),
+        goals: 0,
+        assists: 0,
+        number: squad.length + 1,
+        nationality: country.name,
+        isInjured: false,
+        isSuspended: false
+      });
+    }
   }
   
   return squad;
@@ -306,7 +462,7 @@ export const generateInitialTeams = (competitions: Competition[] = COMPETITIONS)
       attack: overall + Math.floor(Math.random() * 5),
       midfield: overall + Math.floor(Math.random() * 5),
       defense: overall + Math.floor(Math.random() * 5),
-      players: generateSquad(overall, comp?.playersPerTeam || 11),
+      players: generateSquad(overall, comp?.playersPerTeam || 11, t.name),
       points: 0,
       played: 0,
       won: 0,
@@ -379,6 +535,7 @@ export const generateSchedule = (teams: Team[], competitions: Competition[]): Ma
             allMatches.push({
               id: generateUUID(),
               week: round + 1,
+              date: new Date(2025, 7, 15 + round * 7).toISOString(),
               competitionId: leagueId,
               homeTeamId,
               awayTeamId,
@@ -430,6 +587,7 @@ export const generateNextTournamentRound = (finishedMatches: Match[], competitio
       nextMatches.push({
         id: generateUUID(),
         week: currentWeek + 1,
+        date: new Date(2025, 7, 15 + currentWeek * 7).toISOString(),
         competitionId: competitionId,
         homeTeamId: winners[i],
         awayTeamId: winners[i+1],

@@ -27,6 +27,7 @@ export interface Player {
   value: number;
   goals: number;
   assists: number;
+  number?: number;
   photo?: string;
   nationality?: string;
   isInjured?: boolean;
@@ -67,6 +68,7 @@ export interface MatchEvent {
 export interface Match {
   id: string;
   week: number;
+  date?: string;
   competitionId: string;
   homeTeamId: string;
   awayTeamId: string;
