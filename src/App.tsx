@@ -269,18 +269,35 @@ export default function App() {
         throw new Error("Preencha todos os campos.");
       }
 
+      if (authPassword.length < 6) {
+        throw new Error("A senha deve ter pelo menos 6 caracteres.");
+      }
+
       const { data, error } = type === 'login' 
         ? await supabase.auth.signInWithPassword({ email: authEmail, password: authPassword })
         : await supabase.auth.signUp({ email: authEmail, password: authPassword });
 
       if (error) {
         console.error(`Erro no ${type}:`, error);
+        if (error.message.includes('User already registered')) {
+          throw new Error("Este e-mail já está cadastrado. Tente fazer login.");
+        }
+        if (error.message.includes('Invalid login credentials')) {
+          throw new Error("E-mail ou senha incorretos.");
+        }
+        if (error.message.includes('Email not confirmed')) {
+          throw new Error("E-mail não confirmado. Verifique sua caixa de entrada.");
+        }
         throw error;
       }
       
       console.log(`${type} bem-sucedido:`, data);
       if (type === 'signup') {
-        setAuthError("Cadastro realizado! Verifique seu e-mail.");
+        if (data.session) {
+          setAuthError("Cadastro realizado com sucesso!");
+        } else {
+          setAuthError("Cadastro realizado! Verifique seu e-mail para confirmar a conta.");
+        }
       }
     } catch (error: any) {
       console.error("Erro de autenticação detalhado:", error);
@@ -599,7 +616,7 @@ export default function App() {
 
             <div className="braskick-card space-y-4">
               {authError && (
-                <div className={`p-3 rounded-xl text-xs font-bold uppercase tracking-widest text-center ${authError.includes('realizado') ? 'bg-braskick-verde/20 text-braskick-verde' : 'bg-red-500/20 text-red-400'}`}>
+                <div className={`p-3 rounded-xl text-xs font-bold uppercase tracking-widest text-center ${authError.includes('realizado') || authError.includes('sucesso') ? 'bg-braskick-verde/20 text-braskick-verde' : 'bg-red-500/20 text-red-400'}`}>
                   {authError}
                 </div>
               )}
