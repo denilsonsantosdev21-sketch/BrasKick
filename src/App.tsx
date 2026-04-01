@@ -1,5 +1,5 @@
 /// <reference types="vite/client" />
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   Trophy, 
   Users, 
@@ -87,6 +87,8 @@ export default function App() {
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
   const [isLocalPlay, setIsLocalPlay] = useState(false);
+  const [isLoadingSave, setIsLoadingSave] = useState(false);
+  const lastLoadedUserId = useRef<string | null>(null);
 
   const isSupabaseConfigured = useMemo(() => {
     const url = import.meta.env.VITE_SUPABASE_URL;
@@ -96,59 +98,59 @@ export default function App() {
 
   // Monitora o estado de autenticação
   useEffect(() => {
-    console.log("Supabase Configured:", isSupabaseConfigured);
     if (!isSupabaseConfigured) {
-      console.warn("VITE_SUPABASE_URL:", !!import.meta.env.VITE_SUPABASE_URL);
-      console.warn("VITE_SUPABASE_ANON_KEY:", !!import.meta.env.VITE_SUPABASE_ANON_KEY);
+      setIsAuthLoading(false);
+      return;
     }
-    const initAuth = async () => {
-      if (!isSupabaseConfigured) {
-        setIsAuthLoading(false);
-        return;
-      }
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        setUser(session?.user ?? null);
-      } catch (err) {
-        console.error("Erro ao obter sessão:", err);
-      } finally {
-        setIsAuthLoading(false);
-      }
+
+    // O onAuthStateChange já dispara o evento INITIAL_SESSION na criação
+    // o que substitui a necessidade de um getSession manual e evita conflitos de lock
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log("Auth Event:", event);
+      setUser(session?.user ?? null);
+      setIsAuthLoading(false);
+      if (session?.user) setAuthError(null);
+    });
+
+    return () => {
+      subscription.unsubscribe();
     };
-
-    initAuth();
-
-    if (isSupabaseConfigured) {
-      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-        setUser(session?.user ?? null);
-        if (session?.user) setAuthError(null);
-      });
-
-      return () => subscription.unsubscribe();
-    }
   }, [isSupabaseConfigured]);
 
   // Carrega o save do Supabase quando o usuário loga
   useEffect(() => {
-    if (user && !gameState) {
+    if (user && !gameState && !isLoadingSave && lastLoadedUserId.current !== user.id) {
       loadGame(user.id);
     }
-  }, [user]);
+  }, [user, gameState, isLoadingSave]);
 
   const loadGame = async (userId: string) => {
+    if (isLoadingSave) return;
+    
+    setIsLoadingSave(true);
+    lastLoadedUserId.current = userId;
+    
     try {
       const { data, error } = await supabase
         .from('saves')
         .select('game_state')
         .eq('user_id', userId)
-        .single();
+        .maybeSingle(); // maybeSingle evita erro se não houver registro
 
-      if (data && !error) {
+      if (error) throw error;
+
+      if (data) {
         setGameState(data.game_state);
         setNews(prev => [...prev, "Seu progresso foi carregado com sucesso!"]);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erro ao carregar save:", error);
+      // Se for erro de rede, podemos tentar novamente mais tarde
+      if (error.message === 'Failed to fetch') {
+        lastLoadedUserId.current = null;
+      }
+    } finally {
+      setIsLoadingSave(false);
     }
   };
 

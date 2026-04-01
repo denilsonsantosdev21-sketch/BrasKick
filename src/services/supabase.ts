@@ -12,5 +12,15 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 export const supabase = createClient(
   supabaseUrl || 'https://placeholder.supabase.co',
-  supabaseAnonKey || 'placeholder-key'
+  supabaseAnonKey || 'placeholder-key',
+  {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+      // Desativar o lock do Web Locks API para evitar conflitos em ambientes de aba única/iframe
+      // e resolver o erro "Lock broken by another request with the 'steal' option"
+      storageKey: 'braskick-auth-token',
+    }
+  }
 );
