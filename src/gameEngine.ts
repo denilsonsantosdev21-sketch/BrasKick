@@ -91,7 +91,10 @@ const REAL_PLAYERS_DATA: Record<string, any[]> = {
     { name: "Darwin Núñez", nationality: "Uruguai", position: "FW", overall: 83 },
     { name: "Diogo Jota", nationality: "Portugal", position: "FW", overall: 83 },
     { name: "Harvey Elliott", nationality: "Inglaterra", position: "MF", overall: 79 },
-    { name: "Conor Bradley", nationality: "Irlanda do Norte", position: "DF", overall: 80 }
+    { name: "Conor Bradley", nationality: "Irlanda do Norte", position: "DF", overall: 80 },
+    { name: "Dominik Szoboszlai", nationality: "Hungria", position: "MF", overall: 85 },
+    { name: "Federico Chiesa", nationality: "Itália", position: "FW", overall: 84 },
+    { name: "Curtis Jones", nationality: "Inglaterra", position: "MF", overall: 79 }
   ],
   "Man City": [
     { name: "Rodri", nationality: "Espanha", position: "MF", overall: 90 },
@@ -110,7 +113,10 @@ const REAL_PLAYERS_DATA: Record<string, any[]> = {
     { name: "Rico Lewis", nationality: "Inglaterra", position: "DF", overall: 81 },
     { name: "Ederson", nationality: "Brasil", position: "GK", overall: 80 },
     { name: "Jeremy Doku", nationality: "Bélgica", position: "FW", overall: 80 },
-    { name: "Savinho", nationality: "Brasil", position: "MF", overall: 79 }
+    { name: "Savinho", nationality: "Brasil", position: "MF", overall: 79 },
+    { name: "John Stones", nationality: "Inglaterra", position: "DF", overall: 85 },
+    { name: "Kyle Walker", nationality: "Inglaterra", position: "DF", overall: 84 },
+    { name: "Nathan Aké", nationality: "Holanda", position: "DF", overall: 84 }
   ],
   "Arsenal": [
     { name: "Gabriel", nationality: "Brasil", position: "DF", overall: 88 },
@@ -130,7 +136,9 @@ const REAL_PLAYERS_DATA: Record<string, any[]> = {
     { name: "Gabriel Martinelli", nationality: "Brasil", position: "FW", overall: 80 },
     { name: "Jakub Kiwior", nationality: "Polônia", position: "DF", overall: 79 },
     { name: "Riccardo Calafiori", nationality: "Itália", position: "DF", overall: 79 },
-    { name: "Myles Lewis-Skelly", nationality: "Inglaterra", position: "DF", overall: 77 }
+    { name: "Myles Lewis-Skelly", nationality: "Inglaterra", position: "DF", overall: 77 },
+    { name: "Kai Havertz", nationality: "Alemanha", position: "FW", overall: 84 },
+    { name: "Jurrien Timber", nationality: "Holanda", position: "DF", overall: 81 }
   ],
   "Chelsea": [
     { name: "Cole Palmer", nationality: "Inglaterra", position: "MF", overall: 87 },
@@ -148,7 +156,10 @@ const REAL_PLAYERS_DATA: Record<string, any[]> = {
     { name: "Mykhailo Mudryk", nationality: "Ucrânia", position: "MF", overall: 79 },
     { name: "Benoît Badiashile", nationality: "França", position: "DF", overall: 79 },
     { name: "Roméo Lavia", nationality: "Bélgica", position: "MF", overall: 79 },
-    { name: "Tosin Adarabioyo", nationality: "Inglaterra", position: "DF", overall: 78 }
+    { name: "Tosin Adarabioyo", nationality: "Inglaterra", position: "DF", overall: 78 },
+    { name: "Robert Sánchez", nationality: "Espanha", position: "GK", overall: 80 },
+    { name: "Christopher Nkunku", nationality: "França", position: "MF", overall: 83 },
+    { name: "Jadon Sancho", nationality: "Inglaterra", position: "FW", overall: 81 }
   ],
   "Napoli": [
     { name: "Kevin De Bruyne", nationality: "Bélgica", position: "MF", overall: 87 },
@@ -165,7 +176,9 @@ const REAL_PLAYERS_DATA: Record<string, any[]> = {
     { name: "Miguel Gutiérrez", nationality: "Espanha", position: "DF", overall: 81 },
     { name: "Matteo Politano", nationality: "Itália", position: "MF", overall: 80 },
     { name: "Leonardo Spinazzola", nationality: "Itália", position: "DF", overall: 79 },
-    { name: "Billy Gilmour", nationality: "Escócia", position: "MF", overall: 78 }
+    { name: "Billy Gilmour", nationality: "Escócia", position: "MF", overall: 78 },
+    { name: "Mathías Olivera", nationality: "Uruguai", position: "DF", overall: 78 },
+    { name: "Giacomo Raspadori", nationality: "Itália", position: "FW", overall: 79 }
   ],
   "Roma": [
     { name: "Paulo Dybala", nationality: "Argentina", position: "MF", overall: 86 },
@@ -182,7 +195,9 @@ const REAL_PLAYERS_DATA: Record<string, any[]> = {
     { name: "Leon Bailey", nationality: "Jamaica", position: "MF", overall: 79 },
     { name: "Leandro Paredes", nationality: "Argentina", position: "MF", overall: 79 },
     { name: "Matías Soulé", nationality: "Argentina", position: "MF", overall: 78 },
-    { name: "Devyne Rensch", nationality: "Holanda", position: "DF", overall: 77 }
+    { name: "Devyne Rensch", nationality: "Holanda", position: "DF", overall: 77 },
+    { name: "Zeki Çelik", nationality: "Turquia", position: "DF", overall: 76 },
+    { name: "Nicola Zalewski", nationality: "Polônia", position: "MF", overall: 76 }
   ]
 };
 

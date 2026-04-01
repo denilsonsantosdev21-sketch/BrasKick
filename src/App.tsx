@@ -327,11 +327,13 @@ export default function App() {
   };
 
   const userTeam = useMemo(() => {
-    return gameState?.teams.find(t => t.id === gameState.userTeamId);
+    if (!gameState) return null;
+    return gameState.teams.find(t => t.id === gameState.userTeamId);
   }, [gameState]);
 
   const currentWeekMatches = useMemo(() => {
-    return gameState?.matches.filter(m => m.week === gameState.currentWeek) || [];
+    if (!gameState) return [];
+    return gameState.matches.filter(m => m.week === gameState.currentWeek) || [];
   }, [gameState]);
 
   const upcomingMatches = useMemo(() => {
@@ -358,19 +360,14 @@ export default function App() {
   }, [gameState]);
 
   const standings = useMemo(() => {
+    if (!gameState) return [];
     return allStandings[activeCompetitionId] || [];
-  }, [allStandings, activeCompetitionId]);
+  }, [allStandings, activeCompetitionId, gameState]);
 
   const userLeagueStandings = useMemo(() => {
     if (!gameState || !userTeam || !gameState.teams) return [];
-    return [...gameState.teams]
-      .filter(t => t && t.leagueId === userTeam.leagueId)
-      .sort((a, b) => {
-        if (b.points !== a.points) return b.points - a.points;
-        if (b.gd !== a.gd) return b.gd - a.gd;
-        return b.gf - a.gf;
-      });
-  }, [gameState, userTeam]);
+    return allStandings[userTeam.leagueId] || [];
+  }, [allStandings, userTeam, gameState]);
 
   const marketPlayers = useMemo(() => {
     if (!gameState || !gameState.teams) return [];
@@ -866,20 +863,20 @@ export default function App() {
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
-            <div className="hidden md:flex items-center bg-braskick-noite3/50 rounded-2xl p-1 border border-white/5">
-              <div className="px-4 py-2 text-[10px] font-bold text-braskick-muted uppercase tracking-widest border-r border-white/5">Temporada</div>
-              <select 
-                value={gameState?.season || 1}
-                className="bg-transparent px-4 py-2 font-display text-lg text-braskick-ouro outline-none cursor-pointer"
-                onChange={() => {}} // Lógica para ver temporadas passadas se implementada no futuro
-              >
-                {Array.from({ length: gameState?.season || 1 }, (_, i) => i + 1).map(s => (
-                  <option key={s} value={s} className="bg-braskick-noite2">Temporada {s}</option>
-                ))}
-              </select>
-            </div>
+          <div className="hidden md:flex items-center bg-braskick-noite3/50 rounded-2xl p-1 border border-white/5 mx-auto">
+            <div className="px-4 py-2 text-[10px] font-bold text-braskick-muted uppercase tracking-widest border-r border-white/5">Temporada</div>
+            <select 
+              value={gameState?.season || 1}
+              className="bg-transparent px-4 py-2 font-display text-lg text-braskick-ouro outline-none cursor-pointer"
+              onChange={() => {}} 
+            >
+              {Array.from({ length: gameState?.season || 1 }, (_, i) => i + 1).map(s => (
+                <option key={s} value={s} className="bg-braskick-noite2">Temporada {s}</option>
+              ))}
+            </select>
+          </div>
 
+          <div className="flex items-center gap-4">
             {gameState && gameState.currentWeek > gameState.totalWeeks ? (
               <button 
                 onClick={handleNextSeason}
@@ -932,6 +929,13 @@ export default function App() {
                         <Calendar className="w-5 h-5" />
                         PRÓXIMO CONFRONTO — RODADA {gameState.currentWeek}
                       </h3>
+                      <button 
+                        onClick={() => setShowResetConfirm(true)}
+                        className="px-4 py-2 bg-red-500/10 border border-red-500/20 rounded-xl text-[10px] font-bold uppercase tracking-widest text-red-400 hover:bg-red-500/20 transition-all flex items-center gap-2"
+                      >
+                        <RotateCcw className="w-3 h-3" />
+                        REINICIAR CARREIRA
+                      </button>
                     </div>
                     {currentWeekMatches.find(m => m.homeTeamId === gameState.userTeamId || m.awayTeamId === gameState.userTeamId) ? (
                       <div className="flex items-center justify-around py-6 relative z-10">
@@ -948,24 +952,43 @@ export default function App() {
                   <div className="braskick-card">
                     <h3 className="text-sm font-bold uppercase tracking-widest text-braskick-muted flex items-center gap-2 mb-6">
                       <Calendar className="w-5 h-5" />
-                      CALENDÁRIO DO MÊS
+                      CALENDÁRIO DE JOGOS
                     </h3>
-                    <div className="grid grid-cols-7 gap-2">
-                      {Array.from({ length: 31 }, (_, i) => {
+                    <div className="grid grid-cols-7 gap-4">
+                      {['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'].map(d => (
+                        <div key={d} className="text-center text-[10px] font-bold text-braskick-muted py-2">{d}</div>
+                      ))}
+                      {Array.from({ length: 35 }, (_, i) => {
                         const day = i + 1;
-                        // Mapeia dias para rodadas (ex: cada 7 dias uma rodada)
                         const week = Math.ceil(day / 7);
                         const match = gameState.matches.find(m => m.week === week && (m.homeTeamId === gameState.userTeamId || m.awayTeamId === gameState.userTeamId));
-                        const isToday = day === (gameState.currentWeek - 1) * 7 + 1; // Simplificação
+                        const isToday = day === (gameState.currentWeek - 1) * 7 + 1;
+                        const opponentId = match?.homeTeamId === gameState.userTeamId ? match?.awayTeamId : match?.homeTeamId;
+                        const opponent = gameState.teams.find(t => t.id === opponentId);
                         
                         return (
-                          <div key={i} className={`aspect-square rounded-xl border flex flex-col items-center justify-center gap-1 transition-all ${
-                            match ? 'bg-braskick-verde/10 border-braskick-verde/30' : 'bg-braskick-noite/50 border-white/5 opacity-40'
-                          } ${isToday ? 'ring-2 ring-braskick-azul border-braskick-azul' : ''}`}>
-                            <span className="text-[10px] font-bold text-braskick-muted">{day}</span>
+                          <div 
+                            key={i} 
+                            onClick={() => match && setSelectedCalendarMatch(match)}
+                            className={`aspect-square rounded-2xl border flex flex-col items-center justify-center gap-2 transition-all cursor-pointer group relative ${
+                              match ? 'bg-braskick-noite3 border-white/10 hover:border-braskick-ouro/50 hover:bg-braskick-noite2' : 'bg-braskick-noite/20 border-white/5 opacity-20'
+                            } ${isToday ? 'ring-2 ring-braskick-ouro border-braskick-ouro bg-braskick-ouro/5' : ''}`}
+                          >
+                            <span className={`text-[10px] font-bold ${isToday ? 'text-braskick-ouro' : 'text-braskick-muted'}`}>{day}</span>
+                            {match && opponent && (
+                              <div 
+                                className="w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold shadow-xl transition-transform group-hover:scale-110 overflow-hidden" 
+                                style={{ 
+                                  backgroundColor: opponent.color,
+                                  color: (opponent.color.toLowerCase() === '#ffffff' || opponent.color.toLowerCase() === 'white') ? '#000000' : '#ffffff'
+                                }}
+                              >
+                                {opponent.logo ? <img src={opponent.logo} alt="" className="w-full h-full object-contain" /> : opponent.name.substring(0, 1)}
+                              </div>
+                            )}
                             {match && (
-                              <div className="w-5 h-5 rounded-lg flex items-center justify-center text-[10px] font-bold text-white shadow-lg" style={{ backgroundColor: gameState.teams.find(t => t.id === (match.homeTeamId === gameState.userTeamId ? match.awayTeamId : match.homeTeamId))?.color }}>
-                                {gameState.teams.find(t => t.id === (match.homeTeamId === gameState.userTeamId ? match.awayTeamId : match.homeTeamId))?.name.substring(0, 1)}
+                              <div className="absolute -top-1 -right-1 w-4 h-4 bg-braskick-ouro rounded-full flex items-center justify-center text-[8px] font-bold text-braskick-noite shadow-lg">
+                                R{match.week}
                               </div>
                             )}
                           </div>
@@ -1430,12 +1453,20 @@ export default function App() {
                     <div key={player.id} className="braskick-card group hover:border-braskick-verde/30 transition-all overflow-hidden p-0">
                       <div className="p-5 flex items-center justify-between border-b border-white/5 bg-white/5">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-xl flex items-center justify-center font-display text-2xl text-white shadow-lg" style={{ backgroundColor: team.color }}>
+                          <div 
+                            className="w-10 h-10 rounded-xl flex items-center justify-center font-display text-2xl shadow-lg" 
+                            style={{ 
+                              backgroundColor: team.color,
+                              color: (team.color.toLowerCase() === '#ffffff' || team.color.toLowerCase() === 'white') ? '#000000' : '#ffffff'
+                            }}
+                          >
                             {player.overall}
                           </div>
                           <div>
                             <h3 className="font-display text-xl leading-none mb-1">{player.name}</h3>
-                            <span className="text-[10px] font-bold text-braskick-muted uppercase tracking-widest">{player.position} • {player.age} ANOS • {player.nationality}</span>
+                            <span className="text-[10px] font-bold text-braskick-muted uppercase tracking-widest">
+                              #{player.number} • {player.position} • {player.age} ANOS • {player.nationality}
+                            </span>
                           </div>
                         </div>
                         <div className="text-right">
