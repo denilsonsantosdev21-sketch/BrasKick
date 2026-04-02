@@ -34,7 +34,13 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
   const [selectedCompId, setSelectedCompId] = useState<string | null>(null);
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
   const [editingItem, setEditingItem] = useState<any>(null);
+  const [showCountrySelector, setShowCountrySelector] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const southAmericanCountries = [
+    'Argentina', 'Bolívia', 'Brasil', 'Chile', 'Colômbia', 
+    'Equador', 'Paraguai', 'Peru', 'Uruguai', 'Venezuela'
+  ];
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -663,6 +669,55 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                           placeholder="Descreva aqui se o campeonato possui alguma regra especial..."
                         />
                       </div>
+
+                      {(editingItem.format === 'GROUPS' || editingItem.format === 'GROUPS_KNOCKOUT') && (
+                        <div className="col-span-2 grid grid-cols-2 gap-4 p-4 bg-braskick-noite rounded-2xl border border-white/5">
+                          <div>
+                            <label className="block text-[10px] font-bold text-braskick-muted uppercase tracking-widest mb-2">Número de Grupos</label>
+                            <input 
+                              type="number" 
+                              value={editingItem.groupsCount || 8} 
+                              onChange={e => setEditingItem({...editingItem, groupsCount: parseInt(e.target.value)})}
+                              className="w-full bg-braskick-noite2 border border-white/10 rounded-xl p-3 text-white outline-none focus:border-braskick-verde"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-braskick-muted uppercase tracking-widest mb-2">Times por Grupo</label>
+                            <input 
+                              type="number" 
+                              value={editingItem.teamsPerGroup || 4} 
+                              onChange={e => setEditingItem({...editingItem, teamsPerGroup: parseInt(e.target.value)})}
+                              className="w-full bg-braskick-noite2 border border-white/10 rounded-xl p-3 text-white outline-none focus:border-braskick-verde"
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {editingItem.region === 'SOUTH_AMERICA' && (
+                        <div className="col-span-2 p-4 bg-braskick-noite rounded-2xl border border-white/5">
+                          <label className="block text-[10px] font-bold text-braskick-muted uppercase tracking-widest mb-4">Países Participantes (América do Sul)</label>
+                          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                            {southAmericanCountries.map(country => (
+                              <label key={country} className="flex items-center gap-2 cursor-pointer group">
+                                <input 
+                                  type="checkbox"
+                                  checked={(editingItem.participatingCountries || []).includes(country)}
+                                  onChange={(e) => {
+                                    const current = editingItem.participatingCountries || [];
+                                    if (e.target.checked) {
+                                      setEditingItem({ ...editingItem, participatingCountries: [...current, country] });
+                                    } else {
+                                      setEditingItem({ ...editingItem, participatingCountries: current.filter((c: string) => c !== country) });
+                                    }
+                                  }}
+                                  className="w-4 h-4 accent-braskick-verde"
+                                />
+                                <span className="text-xs font-bold uppercase tracking-widest text-braskick-muted group-hover:text-white transition-colors">{country}</span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                       <div className="col-span-2">
                         <label className="block text-[10px] font-bold text-braskick-muted uppercase tracking-widest mb-2">URL da Bandeira</label>
                         <input 

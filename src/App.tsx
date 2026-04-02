@@ -29,7 +29,8 @@ import {
   ChevronDown,
   RotateCcw,
   AlertTriangle,
-  LogOut
+  LogOut,
+  Globe
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Team, Match, Player, GameState } from './types';
@@ -53,7 +54,7 @@ export default function App() {
     addHistory
   } = useGameStore();
 
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'squad' | 'league' | 'market' | 'history' | 'fixtures'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'squad' | 'league' | 'market' | 'history' | 'fixtures' | 'national_team'>('dashboard');
   const [activeCompetitionId, setActiveCompetitionId] = useState<string>('f9e8d7c6-b5a4-4321-8765-432109876543');
   const [searchTerm, setSearchTerm] = useState('');
   const [marketFilter, setMarketFilter] = useState<'all' | 'GK' | 'DF' | 'MF' | 'FW'>('all');
@@ -567,9 +568,12 @@ export default function App() {
       }
 
       // Qualificação Continental (ex: 4 primeiros vão para Libertadores)
-      if (comp.qualificationSpots) {
-        Object.entries(comp.qualificationSpots).forEach(([targetCompId, spots]) => {
-          const qualifiedTeams = standings.slice(0, spots as number);
+      if (comp.qualificationSpots || (comp.region === 'BRAZIL' && comp.tier === 1)) {
+        const spots = comp.qualificationSpots || 4; // Default 4 for Brazil Tier 1
+        const targetCompId = competitions.find(c => c.region === 'SOUTH_AMERICA' && c.type === 'TOURNAMENT')?.id;
+        
+        if (targetCompId) {
+          const qualifiedTeams = standings.slice(0, spots);
           qualifiedTeams.forEach(team => {
             const teamIdx = updatedTeams.findIndex(t => t.id === team.id);
             if (!updatedTeams[teamIdx].competitionIds) {
@@ -579,7 +583,7 @@ export default function App() {
               updatedTeams[teamIdx].competitionIds?.push(targetCompId);
             }
           });
-        });
+        }
       }
     });
 
@@ -594,11 +598,25 @@ export default function App() {
   // Simula a próxima rodada do campeonato
   const simulateNextWeek = async () => {
     if (!gameState || isSimulating) return;
+    
+    // Verificar se é pausa internacional (ex: a cada 10 semanas)
+    const isInternationalBreak = gameState.currentWeek % 10 === 0;
+    
     setIsSimulating(true);
 
     try {
       // Simula todas as partidas da rodada atual
-      const matchesToSimulate = gameState.matches?.filter(m => m.week === gameState.currentWeek) || [];
+      const matchesToSimulate = gameState.matches?.filter(m => {
+        if (m.week !== gameState.currentWeek) return false;
+        
+        // Se for pausa internacional, apenas partidas de seleções são simuladas
+        const comp = gameState.competitions.find(c => c.id === m.competitionId);
+        const isNationalMatch = comp?.region === 'WORLD' || comp?.name.toLowerCase().includes('seleção');
+        
+        if (isInternationalBreak) return isNationalMatch;
+        return !isNationalMatch; // Se não for pausa, simula apenas clubes
+      }) || [];
+      
       let updatedTeams = [...gameState.teams];
       const simulatedMatches: Match[] = [];
 
@@ -993,6 +1011,9 @@ export default function App() {
             <SidebarItem active={activeTab === 'fixtures'} icon={<Calendar className="w-5 h-5" />} label="Calendário" onClick={() => { setActiveTab('fixtures'); setIsSidebarOpen(false); }} />
             <SidebarItem active={activeTab === 'market'} icon={<ShoppingCart className="w-5 h-5" />} label="Mercado" onClick={() => { setActiveTab('market'); setIsSidebarOpen(false); }} />
             <SidebarItem active={activeTab === 'history'} icon={<HistoryIcon className="w-5 h-5" />} label="Histórico" onClick={() => { setActiveTab('history'); setIsSidebarOpen(false); }} />
+            {gameState?.userNationalTeamId && (
+              <SidebarItem active={activeTab === 'national_team'} icon={<Globe className="w-5 h-5" />} label="Convocação" onClick={() => { setActiveTab('national_team'); setIsSidebarOpen(false); }} />
+            )}
             {user && (
               <button
                 onClick={syncToSupabase}
@@ -1156,19 +1177,6 @@ export default function App() {
                         <Calendar className="w-5 h-5" />
                         PRÓXIMO CONFRONTO — RODADA {gameState.currentWeek}
                       </h3>
-                      <div className="flex flex-col items-end gap-1">
-                        <div className="flex items-center gap-2">
-                          <span className="px-1.5 py-0.5 bg-braskick-verde text-black text-[8px] font-black rounded uppercase animate-pulse">NOVO</span>
-                          <span className="text-[9px] text-braskick-muted uppercase font-bold tracking-tighter">ELENCOS REAIS 2025/26</span>
-                        </div>
-                        <button
-                          onClick={() => setShowResetConfirm(true)}
-                          className="px-4 py-2 bg-red-500/10 border border-red-500/20 rounded-xl text-[10px] font-bold uppercase tracking-widest text-red-400 hover:bg-red-500/20 transition-all flex items-center gap-2"
-                        >
-                          <RotateCcw className="w-3 h-3" />
-                          REINICIAR CARREIRA
-                        </button>
-                      </div>
                     </div>
                     {currentWeekMatches.find(m => m.homeTeamId === gameState.userTeamId || m.awayTeamId === gameState.userTeamId) ? (
                       <div className="flex items-center justify-around py-6 relative z-10">
@@ -1259,8 +1267,18 @@ export default function App() {
                           const diffTime = date.getTime() - startDate.getTime();
                           const weekOfGame = Math.floor(diffTime / (7 * 24 * 60 * 60 * 1000)) + 1;
 
-                          // Restringir a exibição da partida apenas para Domingo (0)
-                          const match = date.getDay() === 0 ? gameState.matches.find(m => m.week === weekOfGame && (m.homeTeamId === gameState.userTeamId || m.awayTeamId === gameState.userTeamId)) : undefined;
+                          // Restringir a exibição da partida: Domingo (0) para Ligas, Quarta (3) para outros
+                          const match = gameState.matches.find(m => {
+                            if (m.week !== weekOfGame) return false;
+                            if (m.homeTeamId !== gameState.userTeamId && m.awayTeamId !== gameState.userTeamId) return false;
+                            
+                            const comp = gameState.competitions.find(c => c.id === m.competitionId);
+                            if (comp?.format === 'LEAGUE' || comp?.type === 'LEAGUE') {
+                              return date.getDay() === 0; // Domingo
+                            } else {
+                              return date.getDay() === 3; // Quarta
+                            }
+                          });
                           const isToday = day === currentDate.getDate();
                           const opponentId = match?.homeTeamId === gameState.userTeamId ? match?.awayTeamId : match?.homeTeamId;
                           const opponent = gameState.teams.find(t => t.id === opponentId);
@@ -1329,6 +1347,42 @@ export default function App() {
                           <p className="text-sm text-braskick-texto leading-snug">{item}</p>
                         </div>
                       ))}
+                    </div>
+                  </div>
+
+                  {/* Offers Section */}
+                  <div className="braskick-card ring-1 ring-braskick-ouro/30">
+                    <h3 className="text-sm font-bold uppercase tracking-widest text-braskick-ouro flex items-center gap-2 mb-6">
+                      <TrendingUp className="w-5 h-5" />
+                      PROPOSTAS DE CARREIRA
+                    </h3>
+                    <div className="space-y-4">
+                      {gameState.currentWeek % 5 === 0 ? (
+                        <div className="p-4 rounded-xl bg-braskick-ouro/10 border border-braskick-ouro/20 space-y-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-braskick-ouro/20 rounded-lg flex items-center justify-center">
+                              <Globe className="w-6 h-6 text-braskick-ouro" />
+                            </div>
+                            <div>
+                              <div className="font-display text-lg leading-none">SELEÇÃO BRASILEIRA</div>
+                              <div className="text-[10px] font-bold text-braskick-muted uppercase tracking-widest mt-1">Cargo: Treinador</div>
+                            </div>
+                          </div>
+                          <button 
+                            onClick={() => {
+                              setGameState({ ...gameState, userNationalTeamId: 'brazil_national' });
+                              setNews(prev => [`CARREIRA: Você agora é o treinador da Seleção Brasileira!`, ...prev]);
+                            }}
+                            className="w-full py-2 bg-braskick-ouro text-braskick-noite font-display text-xs uppercase tracking-widest rounded-lg hover:bg-yellow-400 transition-all"
+                          >
+                            ACEITAR PROPOSTA
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="text-center py-8 text-braskick-muted font-display text-xs uppercase tracking-widest opacity-50">
+                          Nenhuma proposta no momento
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1903,6 +1957,75 @@ export default function App() {
                 )}
               </motion.div>
             )}
+
+            {activeTab === 'national_team' && (
+              <motion.div
+                key="national_team"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="space-y-8"
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="font-display text-3xl uppercase tracking-widest">Convocação da Seleção</h2>
+                    <p className="text-braskick-muted text-xs font-bold uppercase tracking-widest mt-1">
+                      Selecione os melhores jogadores do país para representar a nação.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  {gameState.teams.flatMap(t => t.players)
+                    .filter(p => p.nationality === 'Brasil')
+                    .sort((a, b) => b.overall - a.overall)
+                    .slice(0, 50)
+                    .map(player => (
+                      <div key={player.id} className={`braskick-card group relative overflow-hidden flex flex-col p-0 border ${player.isCalledUp ? 'border-braskick-verde ring-1 ring-braskick-verde/50' : 'border-white/10'} hover:border-braskick-verde transition-all`}>
+                        <div className="flex-1 p-5">
+                          <div className="flex items-start justify-between mb-4">
+                            <div className="w-16 h-16 bg-braskick-noite3 rounded-2xl overflow-hidden flex-shrink-0 border border-white/5 relative z-10 shadow-lg">
+                              {player.photo ? (
+                                <img src={player.photo} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center">
+                                  <Users className="w-8 h-8 text-braskick-muted opacity-50" />
+                                </div>
+                              )}
+                            </div>
+                            <div className="text-right">
+                              <span className="font-display text-2xl text-braskick-ouro">{player.overall}</span>
+                              <div className="text-[10px] font-bold uppercase tracking-widest text-braskick-muted">{player.position}</div>
+                            </div>
+                          </div>
+                          
+                          <div className="space-y-1 relative z-10">
+                            <div className="font-display text-xl truncate leading-none">{player.name}</div>
+                            <div className="flex items-center justify-between text-[10px] font-bold text-braskick-muted uppercase tracking-widest">
+                              <span>{player.nationality}</span>
+                              <span>{player.age} ANOS</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="bg-white/5 px-5 py-4 flex items-center justify-between border-t border-white/10 relative z-10">
+                          <button 
+                            onClick={() => {
+                              const updatedTeams = gameState.teams.map(t => ({
+                                ...t,
+                                players: t.players.map(p => p.id === player.id ? { ...p, isCalledUp: !p.isCalledUp } : p)
+                              }));
+                              setGameState({ ...gameState, teams: updatedTeams });
+                            }}
+                            className={`w-full py-2 rounded-lg font-display text-xs uppercase tracking-widest transition-all ${player.isCalledUp ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30' : 'bg-braskick-verde text-braskick-noite hover:bg-emerald-500'}`}
+                          >
+                            {player.isCalledUp ? 'DISPENSAR' : 'CONVOCAR'}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </motion.div>
+            )}
           </AnimatePresence>
         </div>
       </main>
@@ -2109,14 +2232,12 @@ function SidebarItem({ icon, label, active, onClick }: { icon: React.ReactNode, 
 
 function StatCard({ label, value, icon }: { label: string, value: string | number, icon: React.ReactNode }) {
   return (
-    <div className="braskick-card group hover:border-white/10 transition-all">
-      <div className="flex items-center justify-between mb-4">
-        <span className="text-[10px] font-bold text-braskick-muted uppercase tracking-[0.2em]">{label}</span>
-        <div className="p-2 rounded-lg bg-white/5 group-hover:bg-white/10 transition-colors">
-          {icon}
-        </div>
+    <div className="braskick-card group hover:border-white/10 transition-all flex flex-col items-center text-center pt-8">
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 p-2 rounded-lg bg-white/5 group-hover:bg-white/10 transition-colors">
+        {icon}
       </div>
-      <div className="text-4xl font-display italic leading-none">{value}</div>
+      <div className="text-4xl font-display italic leading-none mb-2 mt-4">{value}</div>
+      <span className="text-[10px] font-bold text-braskick-muted uppercase tracking-[0.2em]">{label}</span>
     </div>
   );
 }

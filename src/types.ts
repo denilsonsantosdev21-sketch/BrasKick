@@ -18,6 +18,9 @@ export interface Competition {
   playersPerTeam?: number;
   hasPlayoffs?: boolean;
   playoffTeamsCount?: number;
+  groupsCount?: number;
+  teamsPerGroup?: number;
+  participatingCountries?: string[];
 }
 
 export interface Player {
@@ -34,6 +37,8 @@ export interface Player {
   nationality?: string;
   isInjured?: boolean;
   isSuspended?: boolean;
+  isCalledUp?: boolean;
+  nationalTeamId?: string;
 }
 
 export interface Team {
@@ -58,6 +63,7 @@ export interface Team {
   color: string;
   logo?: string;
   form: ('W' | 'D' | 'L')[];
+  isNationalTeam?: boolean;
 }
 
 export interface MatchEvent {
@@ -84,6 +90,7 @@ export interface GameState {
   userTeamId: string;
   gameMode?: 'MANAGER' | 'PLAYER';
   userPlayerId?: string;
+  userNationalTeamId?: string;
   lastTrainedWeek?: number;
   currentDate?: string;
   teams: Team[];
