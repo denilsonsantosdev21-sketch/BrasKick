@@ -51,10 +51,12 @@ export default function App() {
     nextWeek,
     nextSeason,
     updateTeams,
-    addHistory
+    addHistory,
+    baseTeams,
+    setBaseTeams
   } = useGameStore();
 
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'squad' | 'league' | 'market' | 'history' | 'fixtures' | 'national_team'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'squad' | 'league' | 'market' | 'history' | 'fixtures' | 'national_team' | 'account'>('dashboard');
   const [activeCompetitionId, setActiveCompetitionId] = useState<string>('f9e8d7c6-b5a4-4321-8765-432109876543');
   const [searchTerm, setSearchTerm] = useState('');
   const [marketFilter, setMarketFilter] = useState<'all' | 'GK' | 'DF' | 'MF' | 'FW'>('all');
@@ -80,6 +82,16 @@ export default function App() {
   const [selectedCalendarMatch, setSelectedCalendarMatch] = useState<Match | null>(null);
   const [news, setNews] = useState<string[]>(["Bem-vindo ao BrasKick! O seu destino no futebol começa aqui."]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [accountMessage, setAccountMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+
+  const initialSetupTeams = useMemo(() => {
+    if (baseTeams && baseTeams.length > 0) return baseTeams;
+    const generated = generateInitialTeams();
+    setBaseTeams(generated);
+    return generated;
+  }, [baseTeams, setBaseTeams]);
 
   const [user, setUser] = useState<User | null>(null);
   const isAdmin = user?.email === 'denilson.santos.dev21@gmail.com' || user?.email?.toLowerCase().includes('denilson') || user?.email?.toLowerCase().includes('admin');
@@ -359,12 +371,29 @@ export default function App() {
     resetGame();
   };
 
+  const handleUpdatePassword = async () => {
+    if (!newPassword || newPassword !== confirmNewPassword) {
+      setAccountMessage({ type: 'error', text: 'As senhas não coincidem ou estão vazias.' });
+      return;
+    }
+
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
+      setAccountMessage({ type: 'success', text: 'Senha atualizada com sucesso!' });
+      setNewPassword('');
+      setConfirmNewPassword('');
+    } catch (error: any) {
+      setAccountMessage({ type: 'error', text: error.message || 'Erro ao atualizar senha.' });
+    }
+  };
+
   // Inicializa o jogo com o time escolhido
   const startGame = async (teamId: string, mode: 'MANAGER' | 'PLAYER' = 'MANAGER') => {
     try {
-      const teams = generateInitialTeams();
+      const teams = JSON.parse(JSON.stringify(initialSetupTeams)); // Deep copy to avoid modifying baseTeams
       const schedule = generateSchedule(teams, COMPETITIONS);
-      let selectedTeam = teams.find(t => t.id === teamId)!;
+      let selectedTeam = teams.find((t: any) => t.id === teamId)!;
       let newPlayer: Player | undefined;
 
       if (mode === 'PLAYER') {
@@ -818,7 +847,7 @@ export default function App() {
       );
     }
 
-    const teams = generateInitialTeams();
+    const teams = initialSetupTeams;
     return (
       <div className="min-h-screen bg-braskick-noite flex flex-col items-center justify-center p-6">
         <motion.div
@@ -851,7 +880,7 @@ export default function App() {
               <button
                 onClick={() => {
                   if (!gameState) {
-                    const teams = generateInitialTeams();
+                    const teams = initialSetupTeams;
                     const schedule = generateSchedule(teams, COMPETITIONS);
                     setGameState({
                       userTeamId: '',
@@ -1015,15 +1044,21 @@ export default function App() {
               <SidebarItem active={activeTab === 'national_team'} icon={<Globe className="w-5 h-5" />} label="Convocação" onClick={() => { setActiveTab('national_team'); setIsSidebarOpen(false); }} />
             )}
             {user && (
+              <SidebarItem active={activeTab === 'account'} icon={<Settings className="w-5 h-5" />} label="Minha Conta" onClick={() => { setActiveTab('account'); setIsSidebarOpen(false); }} />
+            )}
+            {user && (
               <button
                 onClick={syncToSupabase}
                 disabled={isSyncing}
                 className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-braskick-muted hover:bg-white/5 hover:text-white group"
               >
                 <div className={`p-2 rounded-lg transition-colors ${isSyncing ? 'bg-braskick-ouro/20 text-braskick-ouro animate-spin' : 'bg-braskick-azul/20 text-braskick-azul group-hover:bg-braskick-azul group-hover:text-white'}`}>
-                  <Settings className="w-5 h-5" />
+                  <RotateCcw className={`w-5 h-5 ${isSyncing ? 'animate-spin' : ''}`} />
                 </div>
-                <span className="font-display text-sm uppercase tracking-widest">{isSyncing ? 'Sincronizando...' : 'Sincronizar DB'}</span>
+                <div className="flex flex-col items-start">
+                  <span className="font-display text-xl tracking-wider">Salvar Progresso</span>
+                  <span className="text-[9px] font-bold uppercase tracking-widest opacity-50">Sincronizar com Nuvem</span>
+                </div>
               </button>
             )}
           </nav>
@@ -2023,6 +2058,84 @@ export default function App() {
                         </div>
                       </div>
                     ))}
+                </div>
+              </motion.div>
+            )}
+            {activeTab === 'account' && (
+              <motion.div
+                key="account"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="max-w-2xl mx-auto"
+              >
+                <div className="braskick-card p-8">
+                  <div className="flex items-center gap-6 mb-10">
+                    <div className="w-20 h-20 bg-braskick-verde/20 rounded-3xl flex items-center justify-center">
+                      <Users className="w-10 h-10 text-braskick-verde" />
+                    </div>
+                    <div>
+                      <h2 className="font-display text-3xl uppercase tracking-widest">Minha Conta</h2>
+                      <p className="text-braskick-muted text-xs font-bold uppercase tracking-widest mt-1">Gerencie seu perfil e segurança</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-8">
+                    <div>
+                      <label className="block text-xs font-bold text-braskick-muted uppercase tracking-widest mb-3">Nome de Usuário</label>
+                      <div className="w-full bg-braskick-noite/50 border border-white/5 rounded-2xl p-4 text-white font-display text-xl opacity-70">
+                        {user?.user_metadata?.username || user?.email?.split('@')[0]}
+                      </div>
+                    </div>
+
+                    <div className="pt-6 border-t border-white/5">
+                      <h3 className="font-display text-xl uppercase tracking-widest mb-6 text-braskick-ouro">Alterar Senha</h3>
+                      
+                      {accountMessage && (
+                        <div className={`mb-6 p-4 rounded-xl text-xs font-bold uppercase tracking-widest text-center ${accountMessage.type === 'success' ? 'bg-braskick-verde/20 text-braskick-verde' : 'bg-red-500/20 text-red-400'}`}>
+                          {accountMessage.text}
+                        </div>
+                      )}
+
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-xs font-bold text-braskick-muted uppercase tracking-widest mb-2">Nova Senha</label>
+                          <input
+                            type="password"
+                            value={newPassword}
+                            onChange={(e) => setNewPassword(e.target.value)}
+                            className="w-full bg-braskick-noite border border-white/10 rounded-xl p-4 text-white focus:border-braskick-ouro transition-colors outline-none"
+                            placeholder="••••••••"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-braskick-muted uppercase tracking-widest mb-2">Confirmar Nova Senha</label>
+                          <input
+                            type="password"
+                            value={confirmNewPassword}
+                            onChange={(e) => setConfirmNewPassword(e.target.value)}
+                            className="w-full bg-braskick-noite border border-white/10 rounded-xl p-4 text-white focus:border-braskick-ouro transition-colors outline-none"
+                            placeholder="••••••••"
+                          />
+                        </div>
+                        <button
+                          onClick={handleUpdatePassword}
+                          className="w-full py-4 bg-braskick-ouro text-braskick-noite font-display text-xl uppercase tracking-widest rounded-2xl hover:bg-yellow-400 transition-all font-bold mt-4"
+                        >
+                          SALVAR ALTERAÇÕES
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="pt-10 border-t border-white/5">
+                      <button
+                        onClick={handleLogout}
+                        className="w-full py-4 bg-red-500/10 border border-red-500/20 text-red-400 font-display text-xl uppercase tracking-widest rounded-2xl hover:bg-red-500/20 transition-all flex items-center justify-center gap-3"
+                      >
+                        <LogOut className="w-5 h-5" />
+                        SAIR DA CONTA
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </motion.div>
             )}
