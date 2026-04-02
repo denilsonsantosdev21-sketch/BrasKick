@@ -298,7 +298,8 @@ export default function App() {
         }
 
         // Usamos o username como e-mail internamente para facilitar
-        const internalEmail = `${authUsername.toLowerCase()}@braskick.com`;
+        const safeUsername = authUsername.trim().toLowerCase().replace(/[^a-z0-9._-]/g, '');
+        const internalEmail = `${safeUsername}@braskick.com`;
         
         const { data, error } = await supabase.auth.signUp({ 
           email: internalEmail, 
@@ -329,7 +330,8 @@ export default function App() {
         if (!authUsername || !authPassword) {
           throw new Error("Preencha todos os campos.");
         }
-        const internalEmail = `${authUsername.toLowerCase()}@braskick.com`;
+        const safeUsername = authUsername.trim().toLowerCase().replace(/[^a-z0-9._-]/g, '');
+        const internalEmail = `${safeUsername}@braskick.com`;
         const { error } = await supabase.auth.signInWithPassword({ 
           email: internalEmail, 
           password: authPassword 
