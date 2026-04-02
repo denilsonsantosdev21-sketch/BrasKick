@@ -17,7 +17,12 @@ interface GameStore {
   gastarMoedas: (n: number) => boolean;
   buyPlayer: (player: Player, fromTeamId: string, toTeamId: string, price: number) => boolean;
   sellPlayer: (player: Player, fromTeamId: string, price: number) => void;
+  baseTeams: Team[];
+  baseCompetitions: Competition[];
+  setBaseTeams: (teams: Team[]) => void;
+  setBaseCompetitions: (competitions: Competition[]) => void;
   resetGame: () => void;
+  restartSeason: () => void;
   
   // Admin Actions
   updateCompetition: (competition: Competition) => void;
@@ -156,7 +161,26 @@ export const useGameStore = create<GameStore>()(
         return true;
       },
 
+      baseTeams: [],
+      baseCompetitions: [],
+      setBaseTeams: (teams) => set({ baseTeams: teams }),
+      setBaseCompetitions: (competitions) => set({ baseCompetitions: competitions }),
       resetGame: () => set({ gameState: null, moedas: 500, dinheiroJogo: 0 }),
+      restartSeason: () => set((state) => {
+        if (!state.gameState) return state;
+        const resetTeams = state.gameState.teams.map(t => ({
+          ...t,
+          points: 0, played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0, gd: 0, form: []
+        }));
+        return {
+          gameState: {
+            ...state.gameState,
+            week: 1,
+            teams: resetTeams,
+            matches: [] // Should be regenerated
+          }
+        };
+      }),
 
       updateCompetition: (competition) => set((state) => ({
         gameState: state.gameState ? {

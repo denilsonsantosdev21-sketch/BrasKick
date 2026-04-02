@@ -201,7 +201,7 @@ const REAL_PLAYERS_DATA: Record<string, any[]> = {
   ],
   "Real Madrid": [
     { name: "Kylian Mbappé", nationality: "França", position: "FW", overall: 91 },
-    { name: "Vinícius Jr", nationality: "Brasil", position: "FW", overall: 90 },
+    { name: "Vinícius Jr", nationality: "Brasil", position: "FW", overall: 91 },
     { name: "Jude Bellingham", nationality: "Inglaterra", position: "MF", overall: 90 },
     { name: "Thibaut Courtois", nationality: "Bélgica", position: "GK", overall: 89 },
     { name: "Federico Valverde", nationality: "Uruguai", position: "MF", overall: 88 },
@@ -217,7 +217,75 @@ const REAL_PLAYERS_DATA: Record<string, any[]> = {
     { name: "Endrick", nationality: "Brasil", position: "FW", overall: 77 },
     { name: "Brahim Díaz", nationality: "Marrocos", position: "MF", overall: 82 },
     { name: "David Alaba", nationality: "Áustria", position: "DF", overall: 85 },
-    { name: "Fran García", nationality: "Espanha", position: "DF", overall: 79 }
+    { name: "Fran García", nationality: "Espanha", position: "DF", overall: 79 },
+    { name: "Lucas Vázquez", nationality: "Espanha", position: "DF", overall: 80 },
+    { name: "Andriy Lunin", nationality: "Ucrânia", position: "GK", overall: 81 }
+  ],
+  "Al-Hilal": [
+    { name: "Neymar Jr", nationality: "Brasil", position: "FW", overall: 89 },
+    { name: "João Cancelo", nationality: "Portugal", position: "DF", overall: 86 },
+    { name: "Sergej Milinković-Savić", nationality: "Sérvia", position: "MF", overall: 85 },
+    { name: "Rúben Neves", nationality: "Portugal", position: "MF", overall: 84 },
+    { name: "Aleksandar Mitrović", nationality: "Sérvia", position: "FW", overall: 83 },
+    { name: "Kalidou Koulibaly", nationality: "Senegal", position: "DF", overall: 83 },
+    { name: "Yassine Bounou", nationality: "Marrocos", position: "GK", overall: 84 },
+    { name: "Malcom", nationality: "Brasil", position: "FW", overall: 81 },
+    { name: "Renan Lodi", nationality: "Brasil", position: "DF", overall: 80 },
+    { name: "Marcos Leonardo", nationality: "Brasil", position: "FW", overall: 78 }
+  ],
+  "Inter Miami": [
+    { name: "Lionel Messi", nationality: "Argentina", position: "FW", overall: 88 },
+    { name: "Luis Suárez", nationality: "Uruguai", position: "FW", overall: 82 },
+    { name: "Sergio Busquets", nationality: "Espanha", position: "MF", overall: 81 },
+    { name: "Jordi Alba", nationality: "Espanha", position: "DF", overall: 80 },
+    { name: "Federico Redondo", nationality: "Argentina", position: "MF", overall: 74 },
+    { name: "Drake Callender", nationality: "EUA", position: "GK", overall: 75 },
+    { name: "Diego Gómez", nationality: "Paraguai", position: "MF", overall: 73 }
+  ],
+  "Al-Nassr": [
+    { name: "Cristiano Ronaldo", nationality: "Portugal", position: "FW", overall: 86 },
+    { name: "Sadio Mané", nationality: "Senegal", position: "FW", overall: 84 },
+    { name: "Aymeric Laporte", nationality: "Espanha", position: "DF", overall: 83 },
+    { name: "Marcelo Brozović", nationality: "Croácia", position: "MF", overall: 82 },
+    { name: "Otávio", nationality: "Portugal", position: "MF", overall: 81 },
+    { name: "Alex Telles", nationality: "Brasil", position: "DF", overall: 77 },
+    { name: "Bento", nationality: "Brasil", position: "GK", overall: 80 },
+    { name: "Anderson Talisca", nationality: "Brasil", position: "MF", overall: 81 }
+  ],
+  "Flamengo": [
+    { name: "Pedro", nationality: "Brasil", position: "FW", overall: 80 },
+    { name: "Giorgian de Arrascaeta", nationality: "Uruguai", position: "MF", overall: 80 },
+    { name: "Nicolás de la Cruz", nationality: "Uruguai", position: "MF", overall: 79 },
+    { name: "Gerson", nationality: "Brasil", position: "MF", overall: 78 },
+    { name: "Gabriel Barbosa", nationality: "Brasil", position: "FW", overall: 78 },
+    { name: "Agustín Rossi", nationality: "Argentina", position: "GK", overall: 78 },
+    { name: "Fabrício Bruno", nationality: "Brasil", position: "DF", overall: 77 },
+    { name: "Léo Pereira", nationality: "Brasil", position: "DF", overall: 77 },
+    { name: "Erick Pulgar", nationality: "Chile", position: "MF", overall: 77 },
+    { name: "Ayrton Lucas", nationality: "Brasil", position: "DF", overall: 76 },
+    { name: "Luiz Araújo", nationality: "Brasil", position: "FW", overall: 76 },
+    { name: "Guillermo Varela", nationality: "Uruguai", position: "DF", overall: 75 },
+    { name: "Everton Cebolinha", nationality: "Brasil", position: "FW", overall: 78 },
+    { name: "Léo Ortiz", nationality: "Brasil", position: "DF", overall: 76 },
+    { name: "Matías Viña", nationality: "Uruguai", position: "DF", overall: 76 },
+    { name: "Michael", nationality: "Brasil", position: "FW", overall: 77 },
+    { name: "Alcaraz", nationality: "Argentina", position: "MF", overall: 76 },
+    { name: "Gonzalo Plata", nationality: "Equador", position: "FW", overall: 75 }
+  ],
+  "Botafogo": [
+    { name: "Thiago Almada", nationality: "Argentina", position: "MF", overall: 78 },
+    { name: "Luiz Henrique", nationality: "Brasil", position: "FW", overall: 78 },
+    { name: "Alex Telles", nationality: "Brasil", position: "DF", overall: 77 },
+    { name: "Savarino", nationality: "Venezuela", position: "FW", overall: 76 },
+    { name: "Marlon Freitas", nationality: "Brasil", position: "MF", overall: 76 },
+    { name: "John", nationality: "Brasil", position: "GK", overall: 75 },
+    { name: "Bastos", nationality: "Angola", position: "DF", overall: 75 },
+    { name: "Alexander Barboza", nationality: "Argentina", position: "DF", overall: 75 },
+    { name: "Gregore", nationality: "Brasil", position: "MF", overall: 75 },
+    { name: "Igor Jesus", nationality: "Brasil", position: "FW", overall: 74 },
+    { name: "Vitinho", nationality: "Brasil", position: "DF", overall: 73 },
+    { name: "Adryelson", nationality: "Brasil", position: "DF", overall: 76 },
+    { name: "Allan", nationality: "Brasil", position: "MF", overall: 75 }
   ],
   "Barcelona": [
     { name: "Marc-André ter Stegen", nationality: "Alemanha", position: "GK", overall: 89 },
@@ -286,23 +354,6 @@ const REAL_PLAYERS_DATA: Record<string, any[]> = {
     { name: "Davide Frattesi", nationality: "Itália", position: "MF", overall: 81 },
     { name: "Stefan de Vrij", nationality: "Holanda", position: "DF", overall: 81 },
     { name: "Matteo Darmian", nationality: "Itália", position: "DF", overall: 80 }
-  ],
-  "Flamengo": [
-    { name: "Pedro", nationality: "Brasil", position: "FW", overall: 80 },
-    { name: "Giorgian de Arrascaeta", nationality: "Uruguai", position: "MF", overall: 80 },
-    { name: "Nicolás de la Cruz", nationality: "Uruguai", position: "MF", overall: 79 },
-    { name: "Gerson", nationality: "Brasil", position: "MF", overall: 78 },
-    { name: "Gabriel Barbosa", nationality: "Brasil", position: "FW", overall: 78 },
-    { name: "Agustín Rossi", nationality: "Argentina", position: "GK", overall: 78 },
-    { name: "Fabrício Bruno", nationality: "Brasil", position: "DF", overall: 77 },
-    { name: "Léo Pereira", nationality: "Brasil", position: "DF", overall: 77 },
-    { name: "Erick Pulgar", nationality: "Chile", position: "MF", overall: 77 },
-    { name: "Ayrton Lucas", nationality: "Brasil", position: "DF", overall: 76 },
-    { name: "Luiz Araújo", nationality: "Brasil", position: "FW", overall: 76 },
-    { name: "Guillermo Varela", nationality: "Uruguai", position: "DF", overall: 75 },
-    { name: "Everton Cebolinha", nationality: "Brasil", position: "FW", overall: 78 },
-    { name: "Léo Ortiz", nationality: "Brasil", position: "DF", overall: 76 },
-    { name: "Matías Viña", nationality: "Uruguai", position: "DF", overall: 76 }
   ],
   "Palmeiras": [
     { name: "Raphael Veiga", nationality: "Brasil", position: "MF", overall: 79 },
@@ -512,19 +563,6 @@ const REAL_PLAYERS_DATA: Record<string, any[]> = {
     { name: "Ignácio", nationality: "Brasil", position: "DF", overall: 74 },
     { name: "Facundo Bernal", nationality: "Uruguai", position: "MF", overall: 73 },
     { name: "Kevin Serna", nationality: "Colômbia", position: "FW", overall: 73 }
-  ],
-  "Botafogo": [
-    { name: "Thiago Almada", nationality: "Argentina", position: "MF", overall: 78 },
-    { name: "Luiz Henrique", nationality: "Brasil", position: "FW", overall: 78 },
-    { name: "Alex Telles", nationality: "Brasil", position: "DF", overall: 77 },
-    { name: "Savarino", nationality: "Venezuela", position: "FW", overall: 76 },
-    { name: "Marlon Freitas", nationality: "Brasil", position: "MF", overall: 76 },
-    { name: "John", nationality: "Brasil", position: "GK", overall: 75 },
-    { name: "Bastos", nationality: "Angola", position: "DF", overall: 75 },
-    { name: "Alexander Barboza", nationality: "Argentina", position: "DF", overall: 75 },
-    { name: "Gregore", nationality: "Brasil", position: "MF", overall: 75 },
-    { name: "Igor Jesus", nationality: "Brasil", position: "FW", overall: 74 },
-    { name: "Vitinho", nationality: "Brasil", position: "DF", overall: 73 }
   ],
   "Vasco": [
     { name: "Dimitri Payet", nationality: "França", position: "MF", overall: 78 },

@@ -988,50 +988,78 @@ export default function App() {
 
                   {/* Monthly Calendar Sequence */}
                   <div className="braskick-card">
-                    <h3 className="text-sm font-bold uppercase tracking-widest text-braskick-muted flex items-center gap-2 mb-6">
-                      <Calendar className="w-5 h-5" />
-                      CALENDÁRIO DE JOGOS
-                    </h3>
+                    <div className="flex items-center justify-between mb-6">
+                      <h3 className="text-sm font-bold uppercase tracking-widest text-braskick-muted flex items-center gap-2">
+                        <Calendar className="w-5 h-5" />
+                        CALENDÁRIO DE JOGOS
+                      </h3>
+                      <span className="text-braskick-ouro font-display text-lg uppercase tracking-widest">
+                        {(() => {
+                          const months = ['JANEIRO', 'FEVEREIRO', 'MARÇO', 'ABRIL', 'MAIO', 'JUNHO', 'JULHO', 'AGOSTO', 'SETEMBRO', 'OUTUBRO', 'NOVEMBRO', 'DEZEMBRO'];
+                          const startDate = new Date(2025, 7, 1); // Aug 1, 2025
+                          const currentDate = new Date(startDate.getTime() + (gameState.currentWeek - 1) * 7 * 24 * 60 * 60 * 1000);
+                          return `${months[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
+                        })()}
+                      </span>
+                    </div>
                     <div className="grid grid-cols-7 gap-4">
                       {['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'].map(d => (
                         <div key={d} className="text-center text-[10px] font-bold text-braskick-muted py-2">{d}</div>
                       ))}
-                      {Array.from({ length: 35 }, (_, i) => {
-                        const day = i + 1;
-                        const week = Math.ceil(day / 7);
-                        const match = gameState.matches.find(m => m.week === week && (m.homeTeamId === gameState.userTeamId || m.awayTeamId === gameState.userTeamId));
-                        const isToday = day === (gameState.currentWeek - 1) * 7 + 1;
-                        const opponentId = match?.homeTeamId === gameState.userTeamId ? match?.awayTeamId : match?.homeTeamId;
-                        const opponent = gameState.teams.find(t => t.id === opponentId);
+                      {(() => {
+                        const startDate = new Date(2025, 7, 1); // Aug 1, 2025
+                        const currentDate = new Date(startDate.getTime() + (gameState.currentWeek - 1) * 7 * 24 * 60 * 60 * 1000);
+                        const monthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+                        const monthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+                        const startDay = monthStart.getDay();
+                        const totalDays = monthEnd.getDate();
                         
-                        return (
-                          <div 
-                            key={i} 
-                            onClick={() => match && setSelectedCalendarMatch(match)}
-                            className={`aspect-square rounded-2xl border flex flex-col items-center justify-center gap-2 transition-all cursor-pointer group relative ${
-                              match ? 'bg-braskick-noite3 border-white/10 hover:border-braskick-ouro/50 hover:bg-braskick-noite2' : 'bg-braskick-noite/20 border-white/5 opacity-20'
-                            } ${isToday ? 'ring-2 ring-braskick-ouro border-braskick-ouro bg-braskick-ouro/5' : ''}`}
-                          >
-                            <span className={`text-[10px] font-bold ${isToday ? 'text-braskick-ouro' : 'text-braskick-muted'}`}>{day}</span>
-                            {match && opponent && (
-                              <div 
-                                className="w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold shadow-xl transition-transform group-hover:scale-110 overflow-hidden" 
-                                style={{ 
-                                  backgroundColor: opponent.color,
-                                  color: (opponent.color.toLowerCase() === '#ffffff' || opponent.color.toLowerCase() === 'white') ? '#000000' : '#ffffff'
-                                }}
-                              >
-                                {opponent.logo ? <img src={opponent.logo} alt="" className="w-full h-full object-contain" /> : opponent.name.substring(0, 1)}
-                              </div>
-                            )}
-                            {match && (
-                              <div className="absolute -top-1 -right-1 w-4 h-4 bg-braskick-ouro rounded-full flex items-center justify-center text-[8px] font-bold text-braskick-noite shadow-lg">
-                                R{match.week}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
+                        const days = [];
+                        // Padding for previous month
+                        for (let i = 0; i < startDay; i++) {
+                          days.push(<div key={`pad-${i}`} className="aspect-square opacity-0" />);
+                        }
+                        
+                        for (let day = 1; day <= totalDays; day++) {
+                          const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
+                          const diffTime = date.getTime() - startDate.getTime();
+                          const weekOfGame = Math.floor(diffTime / (7 * 24 * 60 * 60 * 1000)) + 1;
+                          
+                          const match = gameState.matches.find(m => m.week === weekOfGame && (m.homeTeamId === gameState.userTeamId || m.awayTeamId === gameState.userTeamId));
+                          const isToday = day === currentDate.getDate();
+                          const opponentId = match?.homeTeamId === gameState.userTeamId ? match?.awayTeamId : match?.homeTeamId;
+                          const opponent = gameState.teams.find(t => t.id === opponentId);
+                          
+                          days.push(
+                            <div 
+                              key={day} 
+                              onClick={() => match && setSelectedCalendarMatch(match)}
+                              className={`aspect-square rounded-2xl border flex flex-col items-center justify-center gap-2 transition-all cursor-pointer group relative ${
+                                match ? 'bg-braskick-noite3 border-white/10 hover:border-braskick-ouro/50 hover:bg-braskick-noite2' : 'bg-braskick-noite/20 border-white/5 opacity-20'
+                              } ${isToday ? 'ring-2 ring-braskick-ouro border-braskick-ouro bg-braskick-ouro/5' : ''}`}
+                            >
+                              <span className={`text-[10px] font-bold ${isToday ? 'text-braskick-ouro' : 'text-braskick-muted'}`}>{day}</span>
+                              {match && opponent && (
+                                <div 
+                                  className="w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold shadow-xl transition-transform group-hover:scale-110 overflow-hidden" 
+                                  style={{ 
+                                    backgroundColor: opponent.color,
+                                    color: (opponent.color.toLowerCase() === '#ffffff' || opponent.color.toLowerCase() === 'white') ? '#000000' : '#ffffff'
+                                  }}
+                                >
+                                  {opponent.logo ? <img src={opponent.logo} alt="" className="w-full h-full object-contain" /> : opponent.name.substring(0, 1)}
+                                </div>
+                              )}
+                              {match && (
+                                <div className="absolute -top-1 -right-1 w-4 h-4 bg-braskick-ouro rounded-full flex items-center justify-center text-[8px] font-bold text-braskick-noite shadow-lg">
+                                  R{match.week}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        }
+                        return days;
+                      })()}
                     </div>
                   </div>
                 </div>
@@ -1783,7 +1811,14 @@ export default function App() {
                   CANCELAR
                 </button>
                 <button 
-                  onClick={() => {
+                  onClick={async () => {
+                    if (user) {
+                      try {
+                        await supabase.from('saves').delete().eq('user_id', user.id);
+                      } catch (e) {
+                        console.error("Erro ao deletar save no Supabase:", e);
+                      }
+                    }
                     resetGame();
                     setShowResetConfirm(false);
                     setActiveTab('dashboard');
