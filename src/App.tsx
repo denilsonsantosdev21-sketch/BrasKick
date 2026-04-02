@@ -30,7 +30,13 @@ import {
   RotateCcw,
   AlertTriangle,
   LogOut,
-  Globe
+  Globe,
+  User as UserIcon,
+  Lock,
+  Bell,
+  Lightbulb,
+  Info,
+  Flag
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Team, Match, Player, GameState } from './types';
@@ -104,13 +110,21 @@ export default function App() {
   const [authError, setAuthError] = useState<string | null>(null);
   const [isLocalPlay, setIsLocalPlay] = useState(false);
   const [isLoadingSave, setIsLoadingSave] = useState(false);
-  const [setupMode, setSetupMode] = useState<'TEAM_SELECT' | 'CAREER_TYPE' | 'PLAYER_CREATE'>('TEAM_SELECT');
+  const [showTips, setShowTips] = useState(false);
+  const [notifications, setNotifications] = useState<{ id: string; type: 'offer' | 'news'; message: string }[]>([]);
+  const [setupMode, setSetupMode] = useState<'TEAM_SELECT' | 'CAREER_TYPE' | 'PLAYER_CREATE' | 'MANAGER_CREATE'>('TEAM_SELECT');
   const [selectedSetupTeam, setSelectedSetupTeam] = useState<Team | null>(null);
   const [playerCreateData, setPlayerCreateData] = useState({
     name: '',
     position: 'FW' as 'GK' | 'DF' | 'MF' | 'FW',
     age: 18,
-    nationality: 'Brasil'
+    nationality: 'Brasil',
+    preferredFoot: 'R' as 'R' | 'L' | 'B'
+  });
+  const [managerCreateData, setManagerCreateData] = useState({
+    name: '',
+    nationality: 'Brasil',
+    age: 45
   });
 
   const lastLoadedUserId = useRef<string | null>(null);
@@ -403,6 +417,7 @@ export default function App() {
           position: playerCreateData.position,
           age: playerCreateData.age || 18,
           nationality: playerCreateData.nationality || 'Brasil',
+          preferredFoot: playerCreateData.preferredFoot,
           overall: 65,
           value: 1000000,
           goals: 0,
@@ -415,6 +430,9 @@ export default function App() {
         userTeamId: teamId,
         gameMode: mode,
         userPlayerId: newPlayer?.id,
+        managerName: mode === 'MANAGER' ? managerCreateData.name : undefined,
+        managerNationality: mode === 'MANAGER' ? managerCreateData.nationality : undefined,
+        managerAge: mode === 'MANAGER' ? managerCreateData.age : undefined,
         currentDate: new Date(2025, 7, 1).toISOString(), // Começa em 1 Ago 2025
         teams,
         competitions: COMPETITIONS,
@@ -702,6 +720,19 @@ export default function App() {
 
       setGameState(updatedState);
 
+      // Simular propostas de transferência (ex: 15% de chance por semana)
+      if (Math.random() < 0.15) {
+        const newOffer = {
+          id: Math.random().toString(36).substr(2, 9),
+          type: 'offer' as const,
+          message: gameState.gameMode === 'PLAYER' 
+            ? `Você recebeu uma proposta de um novo clube!` 
+            : `O clube recebeu uma proposta por um de seus jogadores!`
+        };
+        setNotifications(prev => [...prev, newOffer]);
+        setNews(prev => [...prev, newOffer.message]);
+      }
+
       // Lógica de notícias baseada no resultado
       if (userMatch) {
         const isHome = userMatch.homeTeamId === gameState.userTeamId;
@@ -935,9 +966,9 @@ export default function App() {
 
           {setupMode === 'CAREER_TYPE' && selectedSetupTeam && (
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-2xl mx-auto">
-              <h2 className="text-3xl font-display mb-8">COMO VOCÊ DESEJA JOGAR NO {selectedSetupTeam.name}?</h2>
+              <h2 className="text-3xl font-display mb-8 uppercase tracking-widest">COMO VOCÊ DESEJA JOGAR NO {selectedSetupTeam.name}?</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <button onClick={() => startGame(selectedSetupTeam.id, 'MANAGER')} className="braskick-card hover:border-braskick-verde/50 transition-all text-left group">
+                <button onClick={() => setSetupMode('MANAGER_CREATE')} className="braskick-card hover:border-braskick-verde/50 transition-all text-left group">
                   <div className="w-16 h-16 bg-braskick-verde/20 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                     <Users className="w-8 h-8 text-braskick-verde" />
                   </div>
@@ -958,21 +989,75 @@ export default function App() {
             </motion.div>
           )}
 
+          {setupMode === 'MANAGER_CREATE' && selectedSetupTeam && (
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-md mx-auto braskick-card text-left">
+              <h2 className="text-2xl font-display mb-6 text-braskick-verde text-center uppercase tracking-widest">CADASTRAR TREINADOR</h2>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-braskick-muted uppercase mb-2">Nome do Treinador</label>
+                  <input type="text" value={managerCreateData.name} onChange={e => setManagerCreateData({ ...managerCreateData, name: e.target.value })} className="w-full bg-braskick-noite border border-white/10 rounded-xl p-3 text-white focus:border-braskick-verde outline-none" placeholder="Nome" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-braskick-muted uppercase mb-2">Nacionalidade</label>
+                  <select value={managerCreateData.nationality} onChange={e => setManagerCreateData({ ...managerCreateData, nationality: e.target.value })} className="w-full bg-braskick-noite border border-white/10 rounded-xl p-3 text-white focus:border-braskick-verde outline-none">
+                    {['Brasil', 'Argentina', 'Uruguai', 'Portugal', 'Espanha', 'França', 'Alemanha', 'Itália', 'Inglaterra'].map(n => (
+                      <option key={n} value={n}>{n}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-braskick-muted uppercase mb-2">Idade</label>
+                  <input type="number" min="25" max="80" value={managerCreateData.age} onChange={e => setManagerCreateData({ ...managerCreateData, age: parseInt(e.target.value) })} className="w-full bg-braskick-noite border border-white/10 rounded-xl p-3 text-white focus:border-braskick-verde outline-none" />
+                </div>
+                <button
+                  onClick={() => startGame(selectedSetupTeam.id, 'MANAGER')}
+                  disabled={!managerCreateData.name}
+                  className="w-full mt-4 py-4 bg-braskick-verde text-braskick-noite font-display text-lg rounded-xl hover:bg-emerald-500 disabled:opacity-50 transition-all font-bold tracking-widest uppercase"
+                >
+                  INICIAR CARREIRA
+                </button>
+                <div className="text-center pt-2">
+                  <button onClick={() => setSetupMode('CAREER_TYPE')} className="text-braskick-muted hover:text-white text-[10px] font-bold uppercase tracking-widest">
+                    ← Voltar
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
           {setupMode === 'PLAYER_CREATE' && selectedSetupTeam && (
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-md mx-auto braskick-card text-left">
-              <h2 className="text-2xl font-display mb-6 text-braskick-ouro text-center">CADASTRAR JOGADOR</h2>
+              <h2 className="text-2xl font-display mb-6 text-braskick-ouro text-center uppercase tracking-widest">CADASTRAR JOGADOR</h2>
               <div className="space-y-4">
                 <div>
                   <label className="block text-xs font-bold text-braskick-muted uppercase mb-2">Nome na Camisa</label>
                   <input type="text" value={playerCreateData.name} onChange={e => setPlayerCreateData({ ...playerCreateData, name: e.target.value })} className="w-full bg-braskick-noite border border-white/10 rounded-xl p-3 text-white focus:border-braskick-ouro outline-none" placeholder="Nome" />
                 </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-braskick-muted uppercase mb-2">Posição</label>
+                    <select value={playerCreateData.position} onChange={e => setPlayerCreateData({ ...playerCreateData, position: e.target.value as any })} className="w-full bg-braskick-noite border border-white/10 rounded-xl p-3 text-white focus:border-braskick-ouro outline-none">
+                      <option value="GK">Goleiro (GOL)</option>
+                      <option value="DF">Defensor (ZAG/LAT)</option>
+                      <option value="MF">Meio-Campo (VOL/MEI)</option>
+                      <option value="FW">Atacante (ATA/PON)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-braskick-muted uppercase mb-2">Perna Boa</label>
+                    <select value={playerCreateData.preferredFoot} onChange={e => setPlayerCreateData({ ...playerCreateData, preferredFoot: e.target.value as any })} className="w-full bg-braskick-noite border border-white/10 rounded-xl p-3 text-white focus:border-braskick-ouro outline-none">
+                      <option value="R">Destro (D)</option>
+                      <option value="L">Canhoto (C)</option>
+                      <option value="B">Ambidestro (A)</option>
+                    </select>
+                  </div>
+                </div>
                 <div>
-                  <label className="block text-xs font-bold text-braskick-muted uppercase mb-2">Posição</label>
-                  <select value={playerCreateData.position} onChange={e => setPlayerCreateData({ ...playerCreateData, position: e.target.value as any })} className="w-full bg-braskick-noite border border-white/10 rounded-xl p-3 text-white focus:border-braskick-ouro outline-none">
-                    <option value="GK">Goleiro (GOL)</option>
-                    <option value="DF">Defensor (ZAG/LAT)</option>
-                    <option value="MF">Meio-Campo (VOL/MEI)</option>
-                    <option value="FW">Atacante (ATA/PON)</option>
+                  <label className="block text-xs font-bold text-braskick-muted uppercase mb-2">Nacionalidade</label>
+                  <select value={playerCreateData.nationality} onChange={e => setPlayerCreateData({ ...playerCreateData, nationality: e.target.value })} className="w-full bg-braskick-noite border border-white/10 rounded-xl p-3 text-white focus:border-braskick-ouro outline-none">
+                    {['Brasil', 'Argentina', 'Uruguai', 'Portugal', 'Espanha', 'França', 'Alemanha', 'Itália', 'Inglaterra'].map(n => (
+                      <option key={n} value={n}>{n}</option>
+                    ))}
                   </select>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
@@ -1097,13 +1182,6 @@ export default function App() {
               </button>
             )}
             <button
-              onClick={handleLogout}
-              className="w-full flex items-center justify-center gap-2 py-3 text-red-400 hover:text-red-300 transition-colors font-display text-sm uppercase tracking-widest border border-red-500/10 rounded-xl mb-2 bg-red-500/5"
-            >
-              <LogOut className="w-4 h-4" />
-              SAIR DA CONTA
-            </button>
-            <button
               onClick={() => setShowResetConfirm(true)}
               className="w-full flex items-center justify-center gap-2 py-3 text-braskick-muted hover:text-red-400 transition-colors font-display text-sm uppercase tracking-widest"
             >
@@ -1160,6 +1238,30 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-4">
+            {notifications.length > 0 && (
+              <button 
+                onClick={() => {
+                  setNotifications([]);
+                  setNews(prev => [...prev, "Notificações limpas."]);
+                }}
+                className="relative p-2 text-braskick-muted hover:text-white transition-colors group"
+              >
+                <Bell className="w-6 h-6" />
+                <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-braskick-noite">
+                  {notifications.length}
+                </span>
+                <div className="absolute top-full right-0 mt-2 w-64 bg-braskick-noite2 border border-white/10 rounded-xl p-4 shadow-2xl opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50">
+                  <h4 className="text-xs font-bold text-braskick-ouro uppercase tracking-widest mb-3">Notificações</h4>
+                  <div className="space-y-2">
+                    {notifications.map(n => (
+                      <div key={n.id} className="text-[10px] text-white bg-white/5 p-2 rounded-lg border border-white/5">
+                        {n.message}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </button>
+            )}
             {gameState && gameState.currentWeek > gameState.totalWeeks ? (
               <button
                 onClick={handleNextSeason}
@@ -1266,10 +1368,19 @@ export default function App() {
                   {/* Monthly Calendar Sequence */}
                   <div className="braskick-card">
                     <div className="flex items-center justify-between mb-6">
-                      <h3 className="text-sm font-bold uppercase tracking-widest text-braskick-muted flex items-center gap-2">
-                        <Calendar className="w-5 h-5" />
-                        CALENDÁRIO DE JOGOS
-                      </h3>
+                      <div className="flex items-center gap-4">
+                        <h3 className="text-sm font-bold uppercase tracking-widest text-braskick-muted flex items-center gap-2">
+                          <Calendar className="w-5 h-5" />
+                          CALENDÁRIO DE JOGOS
+                        </h3>
+                        <button 
+                          onClick={() => setShowTips(true)}
+                          className="flex items-center gap-2 px-3 py-1.5 bg-braskick-ouro/10 border border-braskick-ouro/20 rounded-lg text-braskick-ouro hover:bg-braskick-ouro/20 transition-all text-[10px] font-bold uppercase tracking-widest"
+                        >
+                          <Lightbulb className="w-3 h-3" />
+                          Dicas de Evolução
+                        </button>
+                      </div>
                       <span className="text-braskick-ouro font-display text-lg uppercase tracking-widest">
                         {(() => {
                           const months = ['JANEIRO', 'FEVEREIRO', 'MARÇO', 'ABRIL', 'MAIO', 'JUNHO', 'JULHO', 'AGOSTO', 'SETEMBRO', 'OUTUBRO', 'NOVEMBRO', 'DEZEMBRO'];
@@ -2318,6 +2429,51 @@ export default function App() {
           </motion.div>
         )}
 
+        {showTips && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-braskick-noite/90 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="max-w-md w-full bg-braskick-noite2 border border-white/10 rounded-3xl p-8 shadow-2xl relative overflow-hidden"
+            >
+              <div className="absolute top-0 right-0 w-32 h-32 bg-braskick-ouro/5 -rotate-45 translate-x-16 -translate-y-16" />
+              <div className="relative">
+                <div className="w-16 h-16 bg-braskick-ouro/20 rounded-2xl flex items-center justify-center mb-6">
+                  <Lightbulb className="w-8 h-8 text-braskick-ouro" />
+                </div>
+                <h2 className="text-2xl font-display mb-2 uppercase tracking-widest">Dicas de Evolução</h2>
+                <p className="text-braskick-muted text-sm mb-8">Confira algumas dicas para melhorar seu desempenho e subir seu overall.</p>
+                
+                <div className="space-y-4 mb-8">
+                  {[
+                    "Treine finalização para aumentar seu faro de gol.",
+                    "Mantenha uma boa forma física para evitar lesões.",
+                    "Melhore seu passe para criar mais assistências.",
+                    "Foque em defesa se quiser ser um pilar no time.",
+                    "O overall sobe mais rápido com treinos regulares.",
+                    "Propostas de clubes maiores virão com boas atuações."
+                  ].map((tip, i) => (
+                    <div key={i} className="flex gap-4 items-start p-4 bg-white/5 rounded-xl border border-white/5">
+                      <div className="w-6 h-6 rounded-full bg-braskick-ouro/20 flex items-center justify-center shrink-0 mt-0.5">
+                        <span className="text-[10px] font-bold text-braskick-ouro">{i + 1}</span>
+                      </div>
+                      <p className="text-sm text-white/80 leading-relaxed">{tip}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <button
+                  onClick={() => setShowTips(false)}
+                  className="w-full py-4 bg-braskick-ouro text-braskick-noite font-display text-lg rounded-xl hover:bg-yellow-400 transition-all font-bold tracking-widest uppercase"
+                >
+                  ENTENDI
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
         {showAdminPanel && <AdminPanel onClose={() => setShowAdminPanel(false)} />}
       </AnimatePresence>
     </div>
@@ -2345,12 +2501,13 @@ function SidebarItem({ icon, label, active, onClick }: { icon: React.ReactNode, 
 
 function StatCard({ label, value, icon }: { label: string, value: string | number, icon: React.ReactNode }) {
   return (
-    <div className="braskick-card group hover:border-white/10 transition-all flex flex-col items-center text-center pt-8">
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 p-2 rounded-lg bg-white/5 group-hover:bg-white/10 transition-colors">
+    <div className="braskick-card group hover:border-white/10 transition-all flex flex-col items-center text-center p-6 min-h-[160px] justify-center relative overflow-hidden">
+      <div className="absolute top-0 right-0 w-16 h-16 bg-white/5 -rotate-45 translate-x-8 -translate-y-8" />
+      <div className="p-3 rounded-2xl bg-white/5 group-hover:bg-white/10 transition-colors mb-4 relative z-10">
         {icon}
       </div>
-      <div className="text-4xl font-display italic leading-none mb-2 mt-4">{value}</div>
-      <span className="text-[10px] font-bold text-braskick-muted uppercase tracking-[0.2em]">{label}</span>
+      <div className="text-4xl font-display italic leading-none mb-2 relative z-10">{value}</div>
+      <span className="text-[10px] font-bold text-braskick-muted uppercase tracking-[0.2em] relative z-10">{label}</span>
     </div>
   );
 }

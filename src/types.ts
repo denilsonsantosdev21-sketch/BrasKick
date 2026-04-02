@@ -35,6 +35,7 @@ export interface Player {
   number?: number;
   photo?: string;
   nationality?: string;
+  preferredFoot?: 'R' | 'L' | 'B';
   isInjured?: boolean;
   isSuspended?: boolean;
   isCalledUp?: boolean;
@@ -90,6 +91,9 @@ export interface GameState {
   userTeamId: string;
   gameMode?: 'MANAGER' | 'PLAYER';
   userPlayerId?: string;
+  managerName?: string;
+  managerNationality?: string;
+  managerAge?: number;
   userNationalTeamId?: string;
   lastTrainedWeek?: number;
   currentDate?: string;
