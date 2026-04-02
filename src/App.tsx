@@ -82,8 +82,11 @@ export default function App() {
 
   const [user, setUser] = useState<User | null>(null);
   const isAdmin = user?.email === 'denilson.santos.dev21@gmail.com';
+  const [authUsername, setAuthUsername] = useState('');
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
+  const [authConfirmPassword, setAuthConfirmPassword] = useState('');
+  const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
   const [isLocalPlay, setIsLocalPlay] = useState(false);
@@ -262,60 +265,77 @@ export default function App() {
   };
 
   const handleAuth = async (type: 'login' | 'signup') => {
-    console.log(`Iniciando ${type}...`, { email: authEmail });
+    console.log(`Iniciando ${type}...`, { username: authUsername });
     try {
       setAuthError(null);
       setIsAuthLoading(true);
       
       if (!isSupabaseConfigured) {
-        throw new Error("CONFIGURAÇÃO AUSENTE: O Supabase não foi configurado corretamente. Adicione as chaves VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY nas configurações.");
+        throw new Error("CONFIGURAÇÃO AUSENTE: O Supabase não foi configurado corretamente.");
       }
       
-      if (!authEmail || !authPassword) {
-        throw new Error("Preencha todos os campos.");
-      }
-
-      if (authPassword.length < 6) {
-        throw new Error("A senha deve ter pelo menos 6 caracteres.");
-      }
-
-      const { data, error } = type === 'login' 
-        ? await supabase.auth.signInWithPassword({ email: authEmail, password: authPassword })
-        : await supabase.auth.signUp({ email: authEmail, password: authPassword });
-
-      if (error) {
-        console.error(`Erro no ${type}:`, error);
-        const msg = error.message.toLowerCase();
-        
-        if (msg.includes('failed to fetch') || msg.includes('falha ao buscar') || msg.includes('network error')) {
-          throw new Error("ERRO DE CONEXÃO: O servidor do Supabase não pôde ser alcançado. Verifique sua conexão com a internet ou se o banco de dados está ativo.");
-        }
-        if (msg.includes('invalid login credentials') || msg.includes('invalid credentials') || msg.includes('dados inválidos')) {
-          throw new Error("DADOS INCORRETOS: O e-mail ou a senha digitados estão incorretos. Verifique se há erros de digitação e tente novamente.");
-        }
-        if (msg.includes('email not confirmed') || msg.includes('e-mail não confirmado')) {
-          throw new Error("E-MAIL PENDENTE: Sua conta foi criada, mas você precisa confirmá-la no seu e-mail antes de entrar. Verifique sua caixa de entrada e a pasta de spam.");
-        }
-        if (msg.includes('user already registered') || msg.includes('usuário já cadastrado')) {
-          throw new Error("CONTA JÁ EXISTE: Este e-mail já está cadastrado no sistema. Tente fazer login em vez de criar uma nova conta.");
-        }
-        if (msg.includes('rate limit') || msg.includes('limite de taxa')) {
-          throw new Error("MUITAS TENTATIVAS: Você tentou muitas vezes em pouco tempo. Por segurança, aguarde alguns minutos antes de tentar novamente.");
-        }
-        
-        throw error;
-      }
-      
-      console.log(`${type} bem-sucedido:`, data);
       if (type === 'signup') {
+        if (!authUsername || !authPassword || !authConfirmPassword) {
+          throw new Error("Preencha todos os campos.");
+        }
+        if (authPassword !== authConfirmPassword) {
+          throw new Error("As senhas não coincidem.");
+        }
+        if (authPassword.length < 6) {
+          throw new Error("A senha deve ter pelo menos 6 caracteres.");
+        }
+        if (authUsername.length < 3) {
+          throw new Error("O nome de usuário deve ter pelo menos 3 caracteres.");
+        }
+
+        // Usamos o username como e-mail internamente para facilitar
+        const internalEmail = `${authUsername.toLowerCase()}@braskick.com`;
+        
+        const { data, error } = await supabase.auth.signUp({ 
+          email: internalEmail, 
+          password: authPassword,
+          options: {
+            data: {
+              username: authUsername
+            }
+          }
+        });
+
+        if (error) {
+          console.error("Erro no signup:", error);
+          if (error.message.toLowerCase().includes('already registered')) {
+            throw new Error("USUÁRIO JÁ EXISTE: Este nome de usuário já está sendo usado. Escolha outro.");
+          }
+          throw error;
+        }
+
         if (data.session) {
           setAuthError("Cadastro realizado com sucesso!");
+          setAuthMode('login');
         } else {
-          setAuthError("Cadastro realizado! Verifique seu e-mail para confirmar a conta.");
+          setAuthError("Cadastro realizado! Você já pode entrar.");
+          setAuthMode('login');
+        }
+      } else {
+        if (!authUsername || !authPassword) {
+          throw new Error("Preencha todos os campos.");
+        }
+        const internalEmail = `${authUsername.toLowerCase()}@braskick.com`;
+        const { error } = await supabase.auth.signInWithPassword({ 
+          email: internalEmail, 
+          password: authPassword 
+        });
+
+        if (error) {
+          console.error("Erro no login:", error);
+          if (error.message.toLowerCase().includes('invalid login credentials') || error.message.toLowerCase().includes('invalid credentials')) {
+            throw new Error("DADOS INCORRETOS: Usuário ou senha inválidos.");
+          }
+          throw error;
         }
       }
     } catch (error: any) {
-      console.error("Erro de autenticação detalhado:", error);
+      console.error("Erro de autenticação:", error);
       setAuthError(error.message || "Erro ao processar solicitação.");
     } finally {
       setIsAuthLoading(false);
@@ -635,15 +655,31 @@ export default function App() {
                   {authError}
                 </div>
               )}
+              
+              <div className="flex bg-braskick-noite rounded-xl p-1 mb-4">
+                <button 
+                  onClick={() => { setAuthMode('login'); setAuthError(null); }}
+                  className={`flex-1 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg transition-all ${authMode === 'login' ? 'bg-braskick-verde text-braskick-noite' : 'text-braskick-muted hover:text-white'}`}
+                >
+                  Entrar
+                </button>
+                <button 
+                  onClick={() => { setAuthMode('signup'); setAuthError(null); }}
+                  className={`flex-1 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg transition-all ${authMode === 'signup' ? 'bg-braskick-verde text-braskick-noite' : 'text-braskick-muted hover:text-white'}`}
+                >
+                  Cadastrar
+                </button>
+              </div>
+
               <div>
-                <label className="block text-xs font-bold text-braskick-muted uppercase tracking-widest mb-2">E-mail</label>
+                <label className="block text-xs font-bold text-braskick-muted uppercase tracking-widest mb-2">Nome de Usuário</label>
                 <input 
-                  type="email" 
-                  value={authEmail}
-                  onChange={(e) => setAuthEmail(e.target.value)}
+                  type="text" 
+                  value={authUsername}
+                  onChange={(e) => setAuthUsername(e.target.value)}
                   disabled={!isSupabaseConfigured}
                   className="w-full bg-braskick-noite border border-white/10 rounded-xl p-4 text-white focus:border-braskick-verde transition-colors outline-none disabled:opacity-50"
-                  placeholder="seu@email.com"
+                  placeholder="Ex: craque10"
                 />
               </div>
               <div>
@@ -657,20 +693,28 @@ export default function App() {
                   placeholder="••••••••"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4 pt-4">
+
+              {authMode === 'signup' && (
+                <div>
+                  <label className="block text-xs font-bold text-braskick-muted uppercase tracking-widest mb-2">Confirmar Senha</label>
+                  <input 
+                    type="password" 
+                    value={authConfirmPassword}
+                    onChange={(e) => setAuthConfirmPassword(e.target.value)}
+                    disabled={!isSupabaseConfigured}
+                    className="w-full bg-braskick-noite border border-white/10 rounded-xl p-4 text-white focus:border-braskick-verde transition-colors outline-none disabled:opacity-50"
+                    placeholder="••••••••"
+                  />
+                </div>
+              )}
+
+              <div className="pt-4">
                 <button 
-                  onClick={() => handleAuth('login')}
+                  onClick={() => handleAuth(authMode)}
                   disabled={isAuthLoading || !isSupabaseConfigured}
-                  className="braskick-button-primary disabled:opacity-50"
+                  className="w-full braskick-button-primary disabled:opacity-50"
                 >
-                  {isAuthLoading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : 'ENTRAR'}
-                </button>
-                <button 
-                  onClick={() => handleAuth('signup')}
-                  disabled={isAuthLoading || !isSupabaseConfigured}
-                  className="braskick-button-secondary disabled:opacity-50"
-                >
-                  CADASTRAR
+                  {isAuthLoading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : (authMode === 'login' ? 'ENTRAR NO JOGO' : 'CRIAR MINHA CARREIRA')}
                 </button>
               </div>
               <div className="pt-4 text-center">
@@ -696,12 +740,23 @@ export default function App() {
           className="max-w-4xl w-full text-center"
         >
           {user && (
-            <div className="absolute top-6 right-6 flex items-center gap-4">
-              <span className="text-xs text-braskick-muted font-bold uppercase tracking-widest">{user.email}</span>
-              <button onClick={handleLogout} className="flex items-center gap-2 text-xs text-red-400 hover:text-red-300 font-bold uppercase tracking-widest transition-colors">
-                <LogOut className="w-3 h-3" />
-                Sair
+            <div className="absolute top-6 right-6 flex items-center gap-6">
+              <button 
+                onClick={() => setShowResetConfirm(true)}
+                className="flex items-center gap-2 text-[10px] text-braskick-muted hover:text-red-400 font-bold uppercase tracking-widest transition-colors"
+              >
+                <RotateCcw className="w-3 h-3" />
+                Reiniciar Carreira
               </button>
+              <div className="flex items-center gap-4">
+                <span className="text-xs text-braskick-muted font-bold uppercase tracking-widest">
+                  {user.user_metadata?.username || user.email?.split('@')[0]}
+                </span>
+                <button onClick={handleLogout} className="flex items-center gap-2 text-xs text-red-400 hover:text-red-300 font-bold uppercase tracking-widest transition-colors">
+                  <LogOut className="w-3 h-3" />
+                  Sair
+                </button>
+              </div>
             </div>
           )}
           {isAdmin && (
@@ -1349,16 +1404,19 @@ export default function App() {
                 key="fixtures"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
-                className="space-y-6"
+                className="space-y-8"
               >
-                <div className="flex items-center justify-between mb-2">
-                  <h2 className="font-display text-3xl tracking-tighter uppercase italic">Calendário da Temporada</h2>
-                  <div className="flex gap-2">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div>
+                    <h2 className="font-display text-4xl tracking-tighter uppercase italic bg-gradient-to-r from-white to-braskick-muted bg-clip-text text-transparent">Calendário da Temporada</h2>
+                    <p className="text-braskick-muted text-xs font-bold uppercase tracking-widest mt-1">Acompanhe todas as rodadas e resultados</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
                     {COMPETITIONS.map(comp => (
                       <button
                         key={comp.id}
                         onClick={() => setActiveCompetitionId(comp.id)}
-                        className={`px-4 py-2 rounded-xl font-display text-xs uppercase tracking-widest transition-all border ${
+                        className={`px-4 py-2 rounded-xl font-display text-[10px] uppercase tracking-widest transition-all border ${
                           activeCompetitionId === comp.id
                             ? 'bg-braskick-verde text-braskick-noite border-braskick-verde shadow-lg shadow-braskick-verde/20'
                             : 'bg-braskick-noite3/30 text-braskick-muted border-white/5 hover:bg-white/5'
@@ -1370,58 +1428,77 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* FIFA Style Calendar Grid */}
-                <div className="grid grid-cols-7 gap-2">
-                  {['SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB', 'DOM'].map(day => (
-                    <div key={day} className="text-center text-[10px] font-bold text-braskick-muted uppercase tracking-widest py-2">
-                      {day}
-                    </div>
-                  ))}
-                  
-                  {Array.from({ length: 35 }, (_, i) => {
-                    const dayNum = i + 1;
-                    const weekNum = Math.ceil(dayNum / 7);
-                    const weekMatches = (gameState.matches || []).filter(m => m.week === weekNum && m.competitionId === activeCompetitionId);
-                    const isCurrentWeek = weekNum === gameState.currentWeek;
-                    const isPastWeek = weekNum < gameState.currentWeek;
-                    const userMatch = weekMatches.find(m => m.homeTeamId === gameState.userTeamId || m.awayTeamId === gameState.userTeamId);
-                    
-                    // Só mostramos ícones nos dias de jogo (vamos assumir que jogos são no Sábado/Domingo para visual)
-                    const isMatchDay = i % 7 === 5 || i % 7 === 6;
-                    const match = isMatchDay ? userMatch || weekMatches[i % 7 === 5 ? 0 : 1] : null;
-
-                    return (
-                      <div 
-                        key={i} 
-                        className={`aspect-square braskick-card p-2 flex flex-col justify-between relative group transition-all ${
-                          isCurrentWeek ? 'border-braskick-azul/50 bg-braskick-azul/5' : 'opacity-80'
-                        } ${isPastWeek ? 'grayscale-[0.5]' : ''} ${userMatch ? 'ring-1 ring-braskick-verde/30' : ''}`}
-                      >
-                        <span className={`text-[10px] font-bold ${isCurrentWeek ? 'text-braskick-azul' : 'text-braskick-muted'}`}>{dayNum}</span>
-                        
-                        {match && (
-                          <button 
-                            onClick={() => setSelectedCalendarMatch(match)}
-                            className="flex flex-col items-center gap-1 w-full hover:scale-110 transition-transform"
-                          >
-                            <div className="w-6 h-6 rounded-lg bg-braskick-noite flex items-center justify-center border border-white/5">
-                              <Zap className={`w-3 h-3 ${match.homeTeamId === gameState.userTeamId || match.awayTeamId === gameState.userTeamId ? 'text-braskick-verde' : 'text-braskick-ouro'}`} />
-                            </div>
-                            <span className="text-[8px] font-bold uppercase tracking-tighter text-center leading-none truncate w-full">
-                              {match.homeTeamId === gameState.userTeamId || match.awayTeamId === gameState.userTeamId ? 'MEU JOGO' : `RODADA ${weekNum}`}
-                            </span>
-                          </button>
-                        )}
-
-                        {isCurrentWeek && i % 7 === (new Date().getDay() || 7) - 1 && (
-                          <div className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-braskick-azul animate-pulse" />
-                        )}
+                {/* Monthly Calendar View */}
+                <div className="braskick-card">
+                  <div className="flex items-center justify-between mb-8">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-braskick-azul/10 rounded-xl flex items-center justify-center border border-braskick-azul/20">
+                        <Calendar className="w-5 h-5 text-braskick-azul" />
                       </div>
-                    );
-                  })}
+                      <h3 className="text-sm font-bold uppercase tracking-widest text-braskick-muted">Visão Mensal</h3>
+                    </div>
+                    <span className="text-braskick-ouro font-display text-xl uppercase tracking-widest">
+                      {(() => {
+                        const months = ['JANEIRO', 'FEVEREIRO', 'MARÇO', 'ABRIL', 'MAIO', 'JUNHO', 'JULHO', 'AGOSTO', 'SETEMBRO', 'OUTUBRO', 'NOVEMBRO', 'DEZEMBRO'];
+                        const startDate = new Date(2025, 7, 1); // Aug 1, 2025
+                        const currentDate = new Date(startDate.getTime() + (gameState.currentWeek - 1) * 7 * 24 * 60 * 60 * 1000);
+                        return `${months[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
+                      })()}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-7 gap-4">
+                    {['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'].map(d => (
+                      <div key={d} className="text-center text-[10px] font-bold text-braskick-muted py-2 uppercase tracking-widest">{d}</div>
+                    ))}
+                    {(() => {
+                      const startDate = new Date(2025, 7, 1); // Aug 1, 2025
+                      const currentDate = new Date(startDate.getTime() + (gameState.currentWeek - 1) * 7 * 24 * 60 * 60 * 1000);
+                      const monthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+                      const monthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+                      const startDay = monthStart.getDay();
+                      const totalDays = monthEnd.getDate();
+                      
+                      const days = [];
+                      for (let i = 0; i < startDay; i++) {
+                        days.push(<div key={`pad-${i}`} className="aspect-square opacity-0" />);
+                      }
+                      
+                      for (let day = 1; day <= totalDays; day++) {
+                        const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
+                        const diffTime = date.getTime() - startDate.getTime();
+                        const weekOfGame = Math.floor(diffTime / (7 * 24 * 60 * 60 * 1000)) + 1;
+                        
+                        const weekMatches = (gameState.matches || []).filter(m => m.week === weekOfGame && m.competitionId === activeCompetitionId);
+                        const userMatch = weekMatches.find(m => m.homeTeamId === gameState.userTeamId || m.awayTeamId === gameState.userTeamId);
+                        const isToday = day === currentDate.getDate();
+                        const match = userMatch || weekMatches[0];
+                        
+                        days.push(
+                          <div 
+                            key={day} 
+                            onClick={() => match && setSelectedCalendarMatch(match)}
+                            className={`aspect-square rounded-2xl border flex flex-col items-center justify-center gap-2 transition-all cursor-pointer group relative ${
+                              match ? 'bg-braskick-noite3 border-white/10 hover:border-braskick-ouro/50 hover:bg-braskick-noite2' : 'bg-braskick-noite/20 border-white/5 opacity-20'
+                            } ${isToday ? 'ring-2 ring-braskick-ouro border-braskick-ouro bg-braskick-ouro/5' : ''}`}
+                          >
+                            <span className={`text-[10px] font-bold ${isToday ? 'text-braskick-ouro' : 'text-braskick-muted'}`}>{day}</span>
+                            {match && (
+                              <div className="flex flex-col items-center gap-1">
+                                <Zap className={`w-3 h-3 ${match.homeTeamId === gameState.userTeamId || match.awayTeamId === gameState.userTeamId ? 'text-braskick-verde' : 'text-braskick-ouro'}`} />
+                                <span className="text-[8px] font-bold uppercase tracking-tighter text-center leading-none truncate w-full px-1">
+                                  {match.homeTeamId === gameState.userTeamId || match.awayTeamId === gameState.userTeamId ? 'MEU JOGO' : `R${weekOfGame}`}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      }
+                      return days;
+                    })()}
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                   {Array.from({ length: gameState.totalWeeks || 0 }, (_, i) => i + 1).map(week => {
                     const weekMatches = (gameState.matches || []).filter(m => m.week === week && m.competitionId === activeCompetitionId);
                   const isCurrent = week === gameState.currentWeek;
