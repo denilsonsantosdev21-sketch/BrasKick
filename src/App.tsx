@@ -267,6 +267,10 @@ export default function App() {
       setAuthError(null);
       setIsAuthLoading(true);
       
+      if (!isSupabaseConfigured) {
+        throw new Error("CONFIGURAÇÃO AUSENTE: O Supabase não foi configurado corretamente. Adicione as chaves VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY nas configurações.");
+      }
+      
       if (!authEmail || !authPassword) {
         throw new Error("Preencha todos os campos.");
       }
@@ -281,15 +285,24 @@ export default function App() {
 
       if (error) {
         console.error(`Erro no ${type}:`, error);
-        if (error.message.includes('User already registered')) {
-          throw new Error("Este e-mail já está cadastrado. Tente fazer login.");
+        const msg = error.message.toLowerCase();
+        
+        if (msg.includes('failed to fetch') || msg.includes('falha ao buscar') || msg.includes('network error')) {
+          throw new Error("ERRO DE CONEXÃO: O servidor do Supabase não pôde ser alcançado. Verifique sua conexão com a internet ou se o banco de dados está ativo.");
         }
-        if (error.message.includes('Invalid login credentials')) {
-          throw new Error("E-mail ou senha incorretos.");
+        if (msg.includes('invalid login credentials') || msg.includes('invalid credentials') || msg.includes('dados inválidos')) {
+          throw new Error("DADOS INCORRETOS: O e-mail ou a senha digitados estão incorretos. Verifique se há erros de digitação e tente novamente.");
         }
-        if (error.message.includes('Email not confirmed')) {
-          throw new Error("E-mail não confirmado. Verifique sua caixa de entrada.");
+        if (msg.includes('email not confirmed') || msg.includes('e-mail não confirmado')) {
+          throw new Error("E-MAIL PENDENTE: Sua conta foi criada, mas você precisa confirmá-la no seu e-mail antes de entrar. Verifique sua caixa de entrada e a pasta de spam.");
         }
+        if (msg.includes('user already registered') || msg.includes('usuário já cadastrado')) {
+          throw new Error("CONTA JÁ EXISTE: Este e-mail já está cadastrado no sistema. Tente fazer login em vez de criar uma nova conta.");
+        }
+        if (msg.includes('rate limit') || msg.includes('limite de taxa')) {
+          throw new Error("MUITAS TENTATIVAS: Você tentou muitas vezes em pouco tempo. Por segurança, aguarde alguns minutos antes de tentar novamente.");
+        }
+        
         throw error;
       }
       
