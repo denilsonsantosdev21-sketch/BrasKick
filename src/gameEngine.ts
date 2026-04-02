@@ -956,6 +956,9 @@ export const generateSchedule = (teams: Team[], competitions: Competition[]): Ma
       const teamIds = leagueTeams.map(t => t.id);
 
       for (let round = 0; round < numRounds; round++) {
+        const isSecondHalf = round >= matchesPerRound;
+        const actualWeek = isSecondHalf ? round + 5 : round + 1; // 4 weeks interval for mid-season transfers
+        
         for (let i = 0; i < matchesPerRound; i++) {
           const homeIdx = (round + i) % (numTeams - 1);
           let awayIdx = (numTeams - 1 - i + round) % (numTeams - 1);
@@ -968,8 +971,8 @@ export const generateSchedule = (teams: Team[], competitions: Competition[]): Ma
           if (homeTeamId !== 'bye' && awayTeamId !== 'bye') {
             allMatches.push({
               id: generateUUID(),
-              week: round + 1,
-              date: new Date(2025, 7, 15 + round * 7).toISOString(),
+              week: actualWeek,
+              date: new Date(2025, 7, 1 + actualWeek * 7).toISOString(),
               competitionId: leagueId,
               homeTeamId,
               awayTeamId,

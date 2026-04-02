@@ -80,6 +80,10 @@ export interface Match {
 
 export interface GameState {
   userTeamId: string;
+  gameMode?: 'MANAGER' | 'PLAYER';
+  userPlayerId?: string;
+  lastTrainedWeek?: number;
+  currentDate?: string;
   teams: Team[];
   competitions: Competition[];
   currentWeek: number;

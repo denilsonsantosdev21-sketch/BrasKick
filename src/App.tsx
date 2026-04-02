@@ -91,6 +91,15 @@ export default function App() {
   const [authError, setAuthError] = useState<string | null>(null);
   const [isLocalPlay, setIsLocalPlay] = useState(false);
   const [isLoadingSave, setIsLoadingSave] = useState(false);
+  const [setupMode, setSetupMode] = useState<'TEAM_SELECT' | 'CAREER_TYPE' | 'PLAYER_CREATE'>('TEAM_SELECT');
+  const [selectedSetupTeam, setSelectedSetupTeam] = useState<Team | null>(null);
+  const [playerCreateData, setPlayerCreateData] = useState({
+    name: '',
+    position: 'FW' as 'GK'|'DF'|'MF'|'FW',
+    age: 18,
+    nationality: 'Brasil'
+  });
+
   const lastLoadedUserId = useRef<string | null>(null);
 
   const isSupabaseConfigured = useMemo(() => {
@@ -348,14 +357,33 @@ export default function App() {
   };
 
   // Inicializa o jogo com o time escolhido
-  const startGame = async (teamId: string) => {
+  const startGame = async (teamId: string, mode: 'MANAGER' | 'PLAYER' = 'MANAGER') => {
     try {
       const teams = generateInitialTeams();
       const schedule = generateSchedule(teams, COMPETITIONS);
-      const selectedTeam = teams.find(t => t.id === teamId)!;
+      let selectedTeam = teams.find(t => t.id === teamId)!;
+      let newPlayer: Player | undefined;
+
+      if (mode === 'PLAYER') {
+        newPlayer = {
+          id: 'player-avatar',
+          name: playerCreateData.name || 'Jogador Craque',
+          position: playerCreateData.position,
+          age: playerCreateData.age || 18,
+          nationality: playerCreateData.nationality || 'Brasil',
+          overall: 65,
+          value: 1000000,
+          goals: 0,
+          assists: 0
+        };
+        selectedTeam.players.push(newPlayer);
+      }
       
       const newState: GameState = {
         userTeamId: teamId,
+        gameMode: mode,
+        userPlayerId: newPlayer?.id,
+        currentDate: new Date(2025, 7, 1).toISOString(), // Começa em 1 Ago 2025
         teams,
         competitions: COMPETITIONS,
         currentWeek: 1,
@@ -367,7 +395,12 @@ export default function App() {
       };
       setGameState(newState);
       setActiveCompetitionId(selectedTeam.leagueId);
-      setNews(prev => [...prev, `Você assumiu o comando do ${selectedTeam.name}!`]);
+      
+      if (mode === 'MANAGER') {
+        setNews(prev => [...prev, `Você assumiu o comando do ${selectedTeam.name}!`]);
+      } else {
+        setNews(prev => [...prev, `Você iniciou sua carreira no ${selectedTeam.name}! Foque nos treinos.`]);
+      }
       
       if (user) {
         await saveGame(newState);
@@ -442,6 +475,40 @@ export default function App() {
 
   const formatMoney = (value: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(value);
+  };
+
+  const handleTrainPlayer = (type: 'ATTACK' | 'PASS' | 'PHYSICAL') => {
+    if (!gameState || !userTeam || !gameState.userPlayerId) return;
+    
+    const updatedTeams = gameState.teams.map(t => {
+      if (t.id === userTeam.id) {
+         return {
+           ...t,
+           players: t.players.map(p => {
+              if (p.id === gameState.userPlayerId) {
+                  let overall = p.overall;
+                  if (Math.random() > 0.5 && overall < 99) overall += 1;
+                  return { ...p, overall };
+              }
+              return p;
+           })
+         };
+      }
+      return t;
+    });
+
+    setGameState({
+      ...gameState,
+      teams: updatedTeams,
+      lastTrainedWeek: gameState.currentWeek
+    });
+    
+    const messages = {
+      'ATTACK': 'Treino de finalização concluído! Você está com o pé calibrado.',
+      'PASS': 'Treino de passes concluído! Sua visão de jogo foi aprimorada.',
+      'PHYSICAL': 'Treino físico pesado! Melhorando seu condicionamento para os jogos.'
+    };
+    setNews(prev => [...prev, messages[type]]);
   };
 
   const handleNextSeason = () => {
@@ -793,26 +860,97 @@ export default function App() {
           <h1 className="text-6xl md:text-8xl font-display mb-2 bg-gradient-to-b from-white to-braskick-muted bg-clip-text text-transparent">
             BRASKICK
           </h1>
-          <p className="text-braskick-muted text-xl mb-12 font-body uppercase tracking-widest">
-            O SEU DESTINO NO FUTEBOL COMEÇA AQUI
-          </p>
-          
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-h-[50vh] overflow-y-auto p-4 scrollbar-hide bg-braskick-noite2/50 rounded-3xl border border-white/5">
-            {teams.map(team => (
-              <button
-                key={team.id}
-                onClick={() => startGame(team.id)}
-                className="braskick-card hover:border-braskick-verde/50 transition-all group text-left relative overflow-hidden"
-              >
-                <div className="absolute top-0 right-0 w-16 h-16 bg-white/5 -rotate-45 translate-x-8 -translate-y-8" />
-                <div className="w-10 h-10 rounded-xl mb-3 flex items-center justify-center text-xl font-display text-white shadow-lg" style={{ backgroundColor: team.color }}>
-                  {team.name.substring(0, 1)}
-                </div>
-                <div className="font-display text-lg mb-1 truncate">{team.name}</div>
-                <div className="ovr-badge inline-block text-sm">OVR {team.overall}</div>
+          {setupMode === 'TEAM_SELECT' && (
+            <>
+              <p className="text-braskick-muted text-xl mb-12 font-body uppercase tracking-widest">
+                O SEU DESTINO NO FUTEBOL COMEÇA AQUI. Escolha um time e crie sua história.
+              </p>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-h-[50vh] overflow-y-auto p-4 scrollbar-hide bg-braskick-noite2/50 rounded-3xl border border-white/5">
+                {teams.map(team => (
+                  <button
+                    key={team.id}
+                    onClick={() => { setSelectedSetupTeam(team); setSetupMode('CAREER_TYPE'); }}
+                    className="braskick-card hover:border-braskick-verde/50 transition-all group text-left relative overflow-hidden"
+                  >
+                    <div className="absolute top-0 right-0 w-16 h-16 bg-white/5 -rotate-45 translate-x-8 -translate-y-8" />
+                    <div className="w-10 h-10 rounded-xl mb-3 flex items-center justify-center text-xl font-display text-white shadow-lg" style={{ backgroundColor: team.color }}>
+                      {team.name.substring(0, 1)}
+                    </div>
+                    <div className="font-display text-lg mb-1 truncate">{team.name}</div>
+                    <div className="ovr-badge inline-block text-sm">OVR {team.overall}</div>
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+
+          {setupMode === 'CAREER_TYPE' && selectedSetupTeam && (
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-2xl mx-auto">
+              <h2 className="text-3xl font-display mb-8">COMO VOCÊ DESEJA JOGAR NO {selectedSetupTeam.name}?</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <button onClick={() => startGame(selectedSetupTeam.id, 'MANAGER')} className="braskick-card hover:border-braskick-verde/50 transition-all text-left group">
+                  <div className="w-16 h-16 bg-braskick-verde/20 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                    <Users className="w-8 h-8 text-braskick-verde" />
+                  </div>
+                  <h3 className="font-display text-2xl mb-2">GERENTE (MANAGER)</h3>
+                  <p className="text-sm text-braskick-muted">Controle total do time. Contrate, escale e tome todas as decisões da diretoria. O destino do clube está nas suas mãos.</p>
+                </button>
+                <button onClick={() => setSetupMode('PLAYER_CREATE')} className="braskick-card hover:border-braskick-ouro/50 transition-all text-left group">
+                  <div className="w-16 h-16 bg-braskick-ouro/20 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                    <Target className="w-8 h-8 text-braskick-ouro" />
+                  </div>
+                  <h3 className="font-display text-2xl mb-2 text-braskick-ouro">JOGADOR (CARREIRA)</h3>
+                  <p className="text-sm text-braskick-muted">Crie seu jogador. Faça treinos antes dos jogos, cresça seu overall, mude de time e seja o maior do mundo!</p>
+                </button>
+              </div>
+              <button onClick={() => setSetupMode('TEAM_SELECT')} className="mt-8 text-braskick-muted hover:text-white text-sm font-bold uppercase tracking-widest">
+                ← Voltar aos Times
               </button>
-            ))}
-          </div>
+            </motion.div>
+          )}
+
+          {setupMode === 'PLAYER_CREATE' && selectedSetupTeam && (
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-md mx-auto braskick-card text-left">
+              <h2 className="text-2xl font-display mb-6 text-braskick-ouro text-center">CADASTRAR JOGADOR</h2>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-braskick-muted uppercase mb-2">Nome na Camisa</label>
+                  <input type="text" value={playerCreateData.name} onChange={e => setPlayerCreateData({...playerCreateData, name: e.target.value})} className="w-full bg-braskick-noite border border-white/10 rounded-xl p-3 text-white focus:border-braskick-ouro outline-none" placeholder="Nome" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-braskick-muted uppercase mb-2">Posição</label>
+                  <select value={playerCreateData.position} onChange={e => setPlayerCreateData({...playerCreateData, position: e.target.value as any})} className="w-full bg-braskick-noite border border-white/10 rounded-xl p-3 text-white focus:border-braskick-ouro outline-none">
+                    <option value="GK">Goleiro (GOL)</option>
+                    <option value="DF">Defensor (ZAG/LAT)</option>
+                    <option value="MF">Meio-Campo (VOL/MEI)</option>
+                    <option value="FW">Atacante (ATA/PON)</option>
+                  </select>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-braskick-muted uppercase mb-2">Idade</label>
+                    <input type="number" min="16" max="35" value={playerCreateData.age} onChange={e => setPlayerCreateData({...playerCreateData, age: parseInt(e.target.value)})} className="w-full bg-braskick-noite border border-white/10 rounded-xl p-3 text-white focus:border-braskick-ouro outline-none" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-braskick-muted uppercase mb-2">Overall Inicial</label>
+                    <input type="text" value="65" disabled className="w-full bg-braskick-noite/50 border border-white/5 rounded-xl p-3 text-braskick-ouro font-bold text-center outline-none opacity-80" />
+                  </div>
+                </div>
+                <button 
+                  onClick={() => startGame(selectedSetupTeam.id, 'PLAYER')}
+                  disabled={!playerCreateData.name}
+                  className="w-full mt-4 py-4 bg-braskick-ouro text-braskick-noite font-display text-lg rounded-xl hover:bg-yellow-400 disabled:opacity-50 transition-all font-bold tracking-widest uppercase"
+                >
+                  INICIAR CARREIRA
+                </button>
+                <div className="text-center pt-2">
+                  <button onClick={() => setSetupMode('CAREER_TYPE')} className="text-braskick-muted hover:text-white text-[10px] font-bold uppercase tracking-widest">
+                    ← Voltar
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
         </motion.div>
       </div>
     );
@@ -1037,9 +1175,48 @@ export default function App() {
                         <TeamDisplay team={gameState.teams.find(t => t.id === currentWeekMatches.find(m => m.homeTeamId === gameState.userTeamId || m.awayTeamId === gameState.userTeamId)?.awayTeamId)!} />
                       </div>
                     ) : (
-                      <div className="text-center py-12 text-braskick-muted font-display text-2xl uppercase tracking-widest">FIM DA TEMPORADA</div>
+                      <div className="text-center py-12 font-display text-2xl uppercase tracking-widest text-braskick-ouro">
+                        {gameState.currentWeek > gameState.totalWeeks ? 'FIM DA TEMPORADA' : 'SEMANA LIVRE: DESCANSO / TREINOS'}
+                      </div>
                     )}
                   </div>
+
+                  {gameState.gameMode === 'PLAYER' && (
+                    <div className="braskick-card relative overflow-hidden ring-1 ring-braskick-ouro/20">
+                      <div className="absolute top-0 right-0 p-4 opacity-5">
+                        <Target className="w-32 h-32 text-braskick-ouro" />
+                      </div>
+                      <h3 className="text-sm font-bold uppercase tracking-widest text-braskick-ouro flex items-center gap-2 mb-4">
+                          <Target className="w-5 h-5" />
+                          TREINOS DA SEMANA
+                      </h3>
+                      {gameState.lastTrainedWeek === gameState.currentWeek ? (
+                          <div className="text-center p-6 bg-braskick-noite3 rounded-2xl border border-white/5">
+                            <CheckCircle2 className="w-12 h-12 text-braskick-verde mx-auto mb-3" />
+                            <p className="text-braskick-verde font-bold uppercase tracking-widest text-sm">Treino Concluído</p>
+                            <p className="text-braskick-muted text-xs mt-1">Descanse e prepare-se para a partida!</p>
+                          </div>
+                      ) : (
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                              <button onClick={() => handleTrainPlayer('ATTACK')} className="border border-white/5 bg-braskick-noite3 hover:border-braskick-ouro hover:bg-braskick-ouro/5 rounded-xl p-4 transition-all text-left group">
+                                <Zap className="w-6 h-6 text-braskick-ouro mb-2 group-hover:scale-110 transition-transform" />
+                                <div className="font-bold text-xs uppercase tracking-widest text-white">Finalização</div>
+                                <div className="text-[10px] text-braskick-muted mt-1">+Chances de Gol / OVR</div>
+                              </button>
+                              <button onClick={() => handleTrainPlayer('PASS')} className="border border-white/5 bg-braskick-noite3 hover:border-braskick-azul hover:bg-braskick-azul/5 rounded-xl p-4 transition-all text-left group">
+                                <Target className="w-6 h-6 text-braskick-azul mb-2 group-hover:scale-110 transition-transform" />
+                                <div className="font-bold text-xs uppercase tracking-widest text-white">Passes</div>
+                                <div className="text-[10px] text-braskick-muted mt-1">+Assistências / OVR</div>
+                              </button>
+                              <button onClick={() => handleTrainPlayer('PHYSICAL')} className="border border-white/5 bg-braskick-noite3 hover:border-braskick-verde hover:bg-braskick-verde/5 rounded-xl p-4 transition-all text-left group">
+                                <Shield className="w-6 h-6 text-braskick-verde mb-2 group-hover:scale-110 transition-transform" />
+                                <div className="font-bold text-xs uppercase tracking-widest text-white">Físico</div>
+                                <div className="text-[10px] text-braskick-muted mt-1">+Resistência / OVR</div>
+                              </button>
+                          </div>
+                      )}
+                    </div>
+                  )}
 
                   {/* Monthly Calendar Sequence */}
                   <div className="braskick-card">

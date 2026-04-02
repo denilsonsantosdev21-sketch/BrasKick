@@ -23,6 +23,7 @@ interface GameStore {
   setBaseCompetitions: (competitions: Competition[]) => void;
   resetGame: () => void;
   restartSeason: () => void;
+  startPlayerCareer: (player: Player, teamId: string) => void;
   
   // Admin Actions
   updateCompetition: (competition: Competition) => void;
@@ -175,9 +176,28 @@ export const useGameStore = create<GameStore>()(
         return {
           gameState: {
             ...state.gameState,
-            week: 1,
+            currentWeek: 1,
             teams: resetTeams,
             matches: [] // Should be regenerated
+          }
+        };
+      }),
+
+      startPlayerCareer: (player, teamId) => set((state) => {
+        if (!state.gameState) return state;
+        const newTeams = state.gameState.teams.map(t => {
+           if (t.id === teamId) {
+              return { ...t, players: [...t.players, player] };
+           }
+           return t;
+        });
+        return {
+          gameState: {
+            ...state.gameState,
+            gameMode: 'PLAYER',
+            userPlayerId: player.id,
+            userTeamId: teamId,
+            teams: newTeams
           }
         };
       }),

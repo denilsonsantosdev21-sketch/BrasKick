@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { 
   Trophy, 
   Users, 
@@ -19,6 +19,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Competition, Team, Player } from '../types';
 import { useGameStore } from '../gameStore';
 import { generateUUID } from '../gameEngine';
+import * as XLSX from 'xlsx';
+
 
 interface AdminPanelProps {
   onClose: () => void;
@@ -32,6 +34,97 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
   const [selectedCompId, setSelectedCompId] = useState<string | null>(null);
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
   const [editingItem, setEditingItem] = useState<any>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const bstr = evt.target?.result;
+        const wb = XLSX.read(bstr, { type: 'binary' });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        const data = XLSX.utils.sheet_to_json(ws);
+        
+        if (!gameState) return;
+        
+        const teamsMap = new Map<string, Team>();
+        
+        gameState.teams.forEach(t => teamsMap.set(t.name, { ...t, players: [...t.players] }));
+        
+        let importedCount = 0;
+
+        data.forEach((row: any) => {
+          const playerName = row['Nome do Jogador'] || row['Nome'];
+          const nationality = row['Nacionalidade'];
+          const ageStr = row['Idade'];
+          const age = ageStr ? parseInt(ageStr) : 20;
+          const teamName = row['Time'] || row['Equipe'];
+          let position = row['Posição'] || row['Posicao'] || 'MF';
+          const overallStr = row['Overall'] || row['OVR'];
+          const overall = overallStr ? parseInt(overallStr) : 70;
+
+          if (!playerName || !teamName) return;
+
+          if (['GK','DF','MF','FW'].indexOf(position) === -1) {
+             const posMap: any = { 'GOL': 'GK', 'ZAG':'DF', 'LD':'DF','LE':'DF','VOL':'MF','MEI':'MF','MC':'MF','ATA':'FW','PE':'FW','PD':'FW' };
+             position = posMap[position.toString().toUpperCase()] || 'MF';
+          }
+          
+          if (!teamsMap.has(teamName)) {
+            teamsMap.set(teamName, {
+              id: generateUUID(),
+              name: teamName,
+              leagueId: selectedCompId || gameState.competitions[0]?.id || '',
+              overall: 70, 
+              attack: 70, midfield: 70, defense: 70,
+              players: [],
+              budget: 50000000,
+              color: '#000000',
+              points: 0, played: 0, won: 0, drawn: 0, lost: 0, gd: 0, gf: 0, ga: 0, form: []
+            });
+          }
+
+          const team = teamsMap.get(teamName)!;
+          
+          team.players.push({
+            id: generateUUID(),
+            name: String(playerName),
+            position: position as any,
+            overall: isNaN(overall) ? 70 : overall,
+            age: isNaN(age) ? 20 : age,
+            nationality: nationality || 'Desconhecido',
+            value: 1000000,
+            goals: 0,
+            assists: 0
+          });
+          importedCount++;
+        });
+
+        Array.from(teamsMap.values()).forEach(t => {
+          if (t.players.length > 0) {
+            t.overall = Math.round(t.players.reduce((sum, p) => sum + p.overall, 0) / t.players.length);
+            t.attack = t.overall; t.midfield = t.overall; t.defense = t.overall;
+          }
+          if (gameState.teams.find(xt => xt.id === t.id)) {
+            updateTeam(t);
+          } else {
+            addTeam(t);
+          }
+        });
+
+        alert(`Planilha importada! ${importedCount} jogadores importados/atualizados.`);
+      } catch (err) {
+        console.error("Erro importando excel: ", err);
+        alert("Erro ao ler o Excel. Certifique-se de que a planilha tem as colunas corretas.");
+      }
+    };
+    reader.readAsBinaryString(file);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
 
   if (!gameState) return null;
 
@@ -214,12 +307,29 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                       </div>
                     )}
                   </div>
-                  <button 
-                    onClick={() => setEditingItem({ name: '', leagueId: selectedCompId || competitions[0].id, overall: 70, attack: 70, midfield: 70, defense: 70, color: '#009c3b', budget: 50000000, players: [] })}
-                    className="braskick-button-primary flex items-center gap-2"
-                  >
-                    <Plus className="w-5 h-5" /> NOVO TIME
-                  </button>
+                  <div className="flex gap-2">
+                    <div>
+                      <input 
+                        type="file" 
+                        accept=".xlsx, .xls, .csv" 
+                        className="hidden" 
+                        ref={fileInputRef}
+                        onChange={handleFileUpload}
+                      />
+                      <button 
+                        onClick={() => fileInputRef.current?.click()}
+                        className="bg-white/10 hover:bg-white/20 text-white flex items-center gap-2 px-4 py-2 rounded-xl transition-all font-display text-sm uppercase tracking-widest h-full"
+                      >
+                        <Save className="w-5 h-5" /> Importar Excel
+                      </button>
+                    </div>
+                    <button 
+                      onClick={() => setEditingItem({ name: '', leagueId: selectedCompId || competitions[0].id, overall: 70, attack: 70, midfield: 70, defense: 70, color: '#009c3b', budget: 50000000, players: [] })}
+                      className="braskick-button-primary flex items-center gap-2"
+                    >
+                      <Plus className="w-5 h-5" /> NOVO TIME
+                    </button>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
