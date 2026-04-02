@@ -39,7 +39,7 @@ import {
   Flag
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Team, Match, Player, GameState } from './types';
+import { Team, Match, Player, GameState, MatchEvent } from './types';
 import { simulateMatch, updateStandings, generateInitialTeams, generateSchedule, COMPETITIONS, resetTeamsForNewSeason, generateNextTournamentRound } from './gameEngine';
 import { useGameStore } from './gameStore';
 import { supabase } from './services/supabase';
@@ -91,6 +91,22 @@ export default function App() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
   const [accountMessage, setAccountMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+  const [showMatchChoice, setShowMatchChoice] = useState(false);
+  const [isWatchingMatch, setIsWatchingMatch] = useState(false);
+  const [matchSimulationData, setMatchSimulationData] = useState<{
+    match: Match;
+    homeTeam: Team;
+    awayTeam: Team;
+    time: number;
+    homeScore: number;
+    awayScore: number;
+    events: MatchEvent[];
+    tactics: {
+      mentality: 'defensive' | 'balanced' | 'offensive';
+      focus: 'center' | 'sides';
+      intensity: 'light' | 'heavy';
+    }
+  } | null>(null);
 
   const initialSetupTeams = useMemo(() => {
     if (baseTeams && baseTeams.length > 0) return baseTeams;
@@ -504,23 +520,34 @@ export default function App() {
     return allStandings[userTeam.leagueId] || [];
   }, [allStandings, userTeam, gameState]);
 
-  const marketPlayers = useMemo(() => {
-    if (!gameState || !gameState.teams) return [];
+  const [marketPlayers, setMarketPlayers] = useState<{ player: Player, team: Team }[]>([]);
+
+  useEffect(() => {
+    if (!gameState || !gameState.teams) {
+      setMarketPlayers([]);
+      return;
+    }
     const allPlayers: { player: Player, team: Team }[] = [];
     gameState.teams.forEach(team => {
-      if (team && team.id !== gameState.userTeamId) {
+      if (team && team.id !== gameState.userTeamId && team.players) {
         team.players.forEach(player => {
-          allPlayers.push({ player, team });
+          if (player) {
+            allPlayers.push({ player, team });
+          }
         });
       }
     });
 
-    return allPlayers.filter(item => {
-      const matchesSearch = item.player.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.team.name.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesFilter = marketFilter === 'all' || item.player.position === marketFilter;
+    const filtered = allPlayers.filter(item => {
+      const playerName = item.player?.name || '';
+      const teamName = item.team?.name || '';
+      const matchesSearch = playerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        teamName.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesFilter = marketFilter === 'all' || item.player?.position === marketFilter;
       return matchesSearch && matchesFilter;
-    }).sort((a, b) => b.player.overall - a.player.overall);
+    }).sort((a, b) => (b.player?.overall || 0) - (a.player?.overall || 0));
+    
+    setMarketPlayers(filtered);
   }, [gameState, searchTerm, marketFilter]);
 
   const formatMoney = (value: number) => {
@@ -642,32 +669,140 @@ export default function App() {
     setNews(prev => [...prev, `Temporada ${gameState.season + 1} iniciada! Promoções e rebaixamentos processados.`]);
   };
 
+  const startWatchingMatch = () => {
+    if (!gameState) return;
+    const isInternationalBreak = gameState.currentWeek % 10 === 0;
+    const matchesToSimulate = gameState.matches?.filter(m => {
+      if (m.week !== gameState.currentWeek) return false;
+      const comp = gameState.competitions.find(c => c.id === m.competitionId);
+      const isNationalMatch = comp?.region === 'WORLD' || comp?.name.toLowerCase().includes('seleção');
+      if (isInternationalBreak) return isNationalMatch;
+      return !isNationalMatch;
+    }) || [];
+
+    const userMatch = matchesToSimulate.find(m => m.homeTeamId === gameState.userTeamId || m.awayTeamId === gameState.userTeamId);
+    if (!userMatch) return;
+
+    const home = gameState.teams.find(t => t.id === userMatch.homeTeamId);
+    const away = gameState.teams.find(t => t.id === userMatch.awayTeamId);
+    if (!home || !away) return;
+
+    setMatchSimulationData({
+      match: { ...userMatch, events: [], homeScore: 0, awayScore: 0, played: true },
+      homeTeam: home,
+      awayTeam: away,
+      time: 0,
+      homeScore: 0,
+      awayScore: 0,
+      events: [],
+      tactics: {
+        mentality: 'balanced',
+        focus: 'center',
+        intensity: 'light'
+      }
+    });
+    setIsWatchingMatch(true);
+    setShowMatchChoice(false);
+  };
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isWatchingMatch && matchSimulationData) {
+      interval = setInterval(() => {
+        setMatchSimulationData(prev => {
+          if (!prev || prev.time >= 90) {
+            clearInterval(interval);
+            if (prev && prev.time >= 90) {
+              // Finalizar partida
+              setTimeout(() => simulateNextWeek(true), 1000);
+            }
+            return prev;
+          }
+
+          const newTime = prev.time + 1;
+          let newHomeScore = prev.homeScore;
+          let newAwayScore = prev.awayScore;
+          const newEvents = [...prev.events];
+
+          // Lógica de gol simplificada baseada em força e tática
+          const homeStrength = prev.homeTeam.overall + (prev.tactics.mentality === 'offensive' ? 5 : prev.tactics.mentality === 'defensive' ? -5 : 0);
+          const awayStrength = prev.awayTeam.overall;
+
+          const chance = Math.random() * 1000;
+          if (chance < homeStrength / 20) {
+            newHomeScore++;
+            const scorer = prev.homeTeam.players[Math.floor(Math.random() * prev.homeTeam.players.length)];
+            newEvents.push({
+              minute: newTime,
+              type: 'goal',
+              playerName: scorer.name,
+              teamId: prev.homeTeam.id
+            });
+          } else if (chance > 1000 - (awayStrength / 20)) {
+            newAwayScore++;
+            const scorer = prev.awayTeam.players[Math.floor(Math.random() * prev.awayTeam.players.length)];
+            newEvents.push({
+              minute: newTime,
+              type: 'goal',
+              playerName: scorer.name,
+              teamId: prev.awayTeam.id
+            });
+          }
+
+          return {
+            ...prev,
+            time: newTime,
+            homeScore: newHomeScore,
+            awayScore: newAwayScore,
+            events: newEvents,
+            match: {
+              ...prev.match,
+              homeScore: newHomeScore,
+              awayScore: newAwayScore,
+              events: newEvents
+            }
+          };
+        });
+      }, 1333); // 120 segundos para 90 minutos -> ~1.33s por minuto
+    }
+    return () => clearInterval(interval);
+  }, [isWatchingMatch]);
+
   // Simula a próxima rodada do campeonato
-  const simulateNextWeek = async () => {
+  const simulateNextWeek = async (forceQuickSim = false) => {
     if (!gameState || isSimulating) return;
     
-    // Verificar se é pausa internacional (ex: a cada 10 semanas)
+    // Verificar se é pausa internacional
     const isInternationalBreak = gameState.currentWeek % 10 === 0;
     
+    const matchesToSimulate = gameState.matches?.filter(m => {
+      if (m.week !== gameState.currentWeek) return false;
+      const comp = gameState.competitions.find(c => c.id === m.competitionId);
+      const isNationalMatch = comp?.region === 'WORLD' || comp?.name.toLowerCase().includes('seleção');
+      if (isInternationalBreak) return isNationalMatch;
+      return !isNationalMatch;
+    }) || [];
+
+    const userMatch = matchesToSimulate.find(m => m.homeTeamId === gameState.userTeamId || m.awayTeamId === gameState.userTeamId);
+
+    if (userMatch && !forceQuickSim && !isWatchingMatch) {
+      setShowMatchChoice(true);
+      return;
+    }
+
     setIsSimulating(true);
+    setShowMatchChoice(false);
 
     try {
-      // Simula todas as partidas da rodada atual
-      const matchesToSimulate = gameState.matches?.filter(m => {
-        if (m.week !== gameState.currentWeek) return false;
-        
-        // Se for pausa internacional, apenas partidas de seleções são simuladas
-        const comp = gameState.competitions.find(c => c.id === m.competitionId);
-        const isNationalMatch = comp?.region === 'WORLD' || comp?.name.toLowerCase().includes('seleção');
-        
-        if (isInternationalBreak) return isNationalMatch;
-        return !isNationalMatch; // Se não for pausa, simula apenas clubes
-      }) || [];
-      
       let updatedTeams = [...gameState.teams];
       const simulatedMatches: Match[] = [];
 
-      matchesToSimulate.forEach(match => {
+      // Se estivermos assistindo a partida, ela já foi simulada ou será finalizada agora
+      const currentMatchesToSimulate = isWatchingMatch && matchSimulationData 
+        ? matchesToSimulate.filter(m => m.id !== matchSimulationData.match.id)
+        : matchesToSimulate;
+
+      currentMatchesToSimulate.forEach(match => {
         const home = updatedTeams.find(t => t.id === match.homeTeamId);
         const away = updatedTeams.find(t => t.id === match.awayTeamId);
         if (!home || !away) return;
@@ -677,8 +812,15 @@ export default function App() {
         updatedTeams = updateStandings(updatedTeams, result);
       });
 
-      const userMatch = simulatedMatches.find(m => m.homeTeamId === gameState.userTeamId || m.awayTeamId === gameState.userTeamId);
-      setLastMatchResult(userMatch || null);
+      if (isWatchingMatch && matchSimulationData) {
+        simulatedMatches.push(matchSimulationData.match);
+        updatedTeams = updateStandings(updatedTeams, matchSimulationData.match);
+        setIsWatchingMatch(false);
+        setMatchSimulationData(null);
+      }
+
+      const userMatchResult = simulatedMatches.find(m => m.homeTeamId === gameState.userTeamId || m.awayTeamId === gameState.userTeamId);
+      setLastMatchResult(userMatchResult || null);
       setShowMatchResult(true);
 
       // Atualiza o estado global
@@ -1272,7 +1414,7 @@ export default function App() {
               </button>
             ) : (
               <button
-                onClick={simulateNextWeek}
+                onClick={() => simulateNextWeek()}
                 disabled={isSimulating}
                 className="braskick-button-primary flex items-center gap-3 shadow-lg shadow-braskick-verde/20"
               >
@@ -2314,6 +2456,173 @@ export default function App() {
           </motion.div>
         )}
 
+        {showMatchChoice && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-braskick-noite/95 backdrop-blur-md"
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 30 }}
+              animate={{ scale: 1, y: 0 }}
+              className="bg-braskick-noite2 border border-braskick-noite3 rounded-[2rem] p-8 max-w-md w-full shadow-2xl text-center"
+            >
+              <Trophy className="w-16 h-16 text-braskick-ouro mx-auto mb-6" />
+              <h2 className="font-display text-3xl uppercase tracking-widest mb-2">DIA DE JOGO!</h2>
+              <p className="text-braskick-muted text-sm uppercase tracking-widest mb-8">Como você deseja proceder para a partida de hoje?</p>
+              
+              <div className="space-y-4">
+                <button
+                  onClick={() => simulateNextWeek(true)}
+                  className="w-full py-4 bg-white/5 hover:bg-white/10 text-white font-display text-xl uppercase tracking-widest rounded-2xl transition-all border border-white/5"
+                >
+                  Simulação Rápida
+                </button>
+                <button
+                  onClick={startWatchingMatch}
+                  className="w-full py-4 bg-braskick-verde hover:bg-emerald-500 text-braskick-noite font-display text-xl uppercase tracking-widest rounded-2xl transition-all shadow-xl shadow-braskick-verde/20"
+                >
+                  Assistir e Comandar
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {isWatchingMatch && matchSimulationData && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="fixed inset-0 z-[110] bg-braskick-noite flex flex-col"
+          >
+            {/* Placar Superior */}
+            <div className="bg-braskick-noite2 border-b border-white/5 p-4 sm:p-6">
+              <div className="max-w-4xl mx-auto flex items-center justify-between">
+                <div className="flex items-center gap-2 sm:gap-4 flex-1">
+                  <TeamDisplay team={matchSimulationData.homeTeam} size="small" />
+                  <div className="hidden sm:block font-display text-xl uppercase tracking-wider truncate">{matchSimulationData.homeTeam.name}</div>
+                </div>
+                
+                <div className="flex flex-col items-center px-4 sm:px-8">
+                  <div className="text-braskick-ouro font-display text-xl sm:text-2xl mb-1">{matchSimulationData.time}'</div>
+                  <div className="bg-braskick-noite rounded-xl px-4 sm:px-6 py-2 border border-white/10 font-display text-3xl sm:text-5xl italic flex items-center gap-2 sm:gap-4">
+                    <span>{matchSimulationData.homeScore}</span>
+                    <span className="text-white/20">-</span>
+                    <span>{matchSimulationData.awayScore}</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 sm:gap-4 flex-1 justify-end">
+                  <div className="hidden sm:block font-display text-xl uppercase tracking-wider truncate text-right">{matchSimulationData.awayTeam.name}</div>
+                  <TeamDisplay team={matchSimulationData.awayTeam} size="small" />
+                </div>
+              </div>
+            </div>
+
+            {/* Campo de Jogo (Visualização) */}
+            <div className="flex-1 relative overflow-hidden p-4">
+              <div className="w-full h-full bg-emerald-900/30 rounded-[2rem] border-4 border-white/10 relative flex items-center justify-center">
+                {/* Linhas do Campo */}
+                <div className="absolute inset-4 border-2 border-white/10 rounded-[1.5rem]" />
+                <div className="absolute inset-y-4 left-1/2 w-0.5 bg-white/10" />
+                <div className="absolute w-32 h-32 border-2 border-white/10 rounded-full" />
+                
+                {/* Jogadores (Simulados) */}
+                <AnimatePresence>
+                  {Array.from({ length: 22 }).map((_, i) => (
+                    <motion.div
+                      key={i}
+                      animate={{
+                        x: (Math.random() - 0.5) * 200,
+                        y: (Math.random() - 0.5) * 300,
+                      }}
+                      transition={{ duration: 2, repeat: Infinity, repeatType: 'reverse' }}
+                      className={`absolute w-3 h-3 rounded-full shadow-lg ${i < 11 ? 'bg-braskick-verde' : 'bg-braskick-ouro'}`}
+                    />
+                  ))}
+                </AnimatePresence>
+
+                {/* Eventos Recentes */}
+                <div className="absolute bottom-8 left-1/2 -translate-x-1/2 w-full max-w-md px-4">
+                  <AnimatePresence mode="popLayout">
+                    {matchSimulationData.events.slice(-3).reverse().map((event, i) => (
+                      <motion.div
+                        key={event.minute + i}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.9 }}
+                        className="bg-braskick-noite2/90 backdrop-blur-sm border border-braskick-ouro/30 p-3 rounded-xl mb-2 flex items-center gap-3"
+                      >
+                        <Zap className="w-4 h-4 text-braskick-ouro" />
+                        <span className="font-display text-sm uppercase tracking-wider">
+                          {event.minute}' GOL! {event.playerName} ({gameState.teams.find(t => t.id === event.teamId)?.name})
+                        </span>
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
+                </div>
+              </div>
+            </div>
+
+            {/* Painel Tático Inferior */}
+            <div className="bg-braskick-noite2 border-t border-white/5 p-4 sm:p-6 overflow-x-auto">
+              <div className="max-w-4xl mx-auto flex items-center gap-4 sm:gap-8 min-w-max">
+                <div className="flex flex-col gap-2">
+                  <span className="text-[10px] font-bold text-braskick-muted uppercase tracking-widest">Mentalidade</span>
+                  <div className="flex bg-braskick-noite rounded-lg p-1 border border-white/5">
+                    {(['defensive', 'balanced', 'offensive'] as const).map(m => (
+                      <button
+                        key={m}
+                        onClick={() => setMatchSimulationData(prev => prev ? { ...prev, tactics: { ...prev.tactics, mentality: m } } : null)}
+                        className={`px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all ${matchSimulationData.tactics.mentality === m ? 'bg-braskick-ouro text-braskick-noite' : 'text-braskick-muted hover:text-white'}`}
+                      >
+                        {m === 'defensive' ? 'Defensivo' : m === 'balanced' ? 'Equilibrado' : 'Ofensivo'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <span className="text-[10px] font-bold text-braskick-muted uppercase tracking-widest">Foco de Jogo</span>
+                  <div className="flex bg-braskick-noite rounded-lg p-1 border border-white/5">
+                    {(['center', 'sides'] as const).map(f => (
+                      <button
+                        key={f}
+                        onClick={() => setMatchSimulationData(prev => prev ? { ...prev, tactics: { ...prev.tactics, focus: f } } : null)}
+                        className={`px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all ${matchSimulationData.tactics.focus === f ? 'bg-braskick-ouro text-braskick-noite' : 'text-braskick-muted hover:text-white'}`}
+                      >
+                        {f === 'center' ? 'Centro' : 'Laterais'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <span className="text-[10px] font-bold text-braskick-muted uppercase tracking-widest">Marcação</span>
+                  <div className="flex bg-braskick-noite rounded-lg p-1 border border-white/5">
+                    {(['light', 'heavy'] as const).map(i => (
+                      <button
+                        key={i}
+                        onClick={() => setMatchSimulationData(prev => prev ? { ...prev, tactics: { ...prev.tactics, intensity: i } } : null)}
+                        className={`px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all ${matchSimulationData.tactics.intensity === i ? 'bg-braskick-ouro text-braskick-noite' : 'text-braskick-muted hover:text-white'}`}
+                      >
+                        {i === 'light' ? 'Leve' : 'Pesada'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => simulateNextWeek(true)}
+                  className="ml-auto bg-red-500/10 hover:bg-red-500/20 text-red-400 px-6 py-3 rounded-xl border border-red-500/20 font-display text-sm uppercase tracking-widest transition-all"
+                >
+                  Pular Simulação
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
         {showMatchResult && lastMatchResult && (
           <motion.div
             initial={{ opacity: 0 }}
@@ -2324,52 +2633,42 @@ export default function App() {
             <motion.div
               initial={{ scale: 0.9, y: 30 }}
               animate={{ scale: 1, y: 0 }}
-              className="bg-braskick-noite2 border border-braskick-noite3 rounded-[2.5rem] p-10 max-w-xl w-full shadow-[0_0_100px_-20px_rgba(0,0,0,0.5)] relative overflow-hidden"
+              className="bg-braskick-noite2 border border-braskick-noite3 rounded-[1.5rem] sm:rounded-[2.5rem] p-6 sm:p-10 max-w-xl w-full shadow-2xl relative overflow-hidden"
             >
               <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-braskick-verde via-braskick-ouro to-braskick-azul" />
 
-              <div className="text-center mb-10">
-                <div className="font-display text-xl text-braskick-muted mb-6 tracking-[0.3em]">RESULTADO DA RODADA {gameState.currentWeek - 1}</div>
-                <div className="flex items-center justify-around py-8 bg-braskick-noite/50 rounded-[2rem] border border-white/5">
-                  <div className="text-center w-32">
-                    <div className="w-20 h-20 rounded-[1.5rem] mx-auto mb-4 flex items-center justify-center text-4xl font-display text-white shadow-2xl" style={{ backgroundColor: gameState.teams.find(t => t.id === lastMatchResult.homeTeamId)?.color || '#333' }}>
-                      {gameState.teams.find(t => t.id === lastMatchResult.homeTeamId)?.name?.substring(0, 1) || '?'}
-                    </div>
-                    <div className="font-display text-xl uppercase tracking-wider truncate">{gameState.teams.find(t => t.id === lastMatchResult.homeTeamId)?.name || 'Time Excluído'}</div>
-                  </div>
-                  <div className="font-display text-7xl italic flex items-center gap-6">
+              <div className="text-center mb-6 sm:mb-10">
+                <div className="font-display text-xs sm:text-xl text-braskick-muted mb-4 sm:mb-6 tracking-[0.2em] sm:tracking-[0.3em] uppercase">RESULTADO DA RODADA {gameState.currentWeek - 1}</div>
+                <div className="flex items-center justify-between sm:justify-around py-4 sm:py-8 bg-braskick-noite/50 rounded-2xl sm:rounded-[2rem] border border-white/5 px-2">
+                  <TeamDisplay team={gameState.teams.find(t => t.id === lastMatchResult.homeTeamId)} size="small" />
+                  <div className="font-display text-4xl sm:text-7xl italic flex items-center gap-2 sm:gap-6">
                     <span className={lastMatchResult.homeScore > lastMatchResult.awayScore ? 'text-white' : 'text-braskick-muted'}>{lastMatchResult.homeScore}</span>
                     <span className="text-braskick-noite3">-</span>
                     <span className={lastMatchResult.awayScore > lastMatchResult.homeScore ? 'text-white' : 'text-braskick-muted'}>{lastMatchResult.awayScore}</span>
                   </div>
-                  <div className="text-center w-32">
-                    <div className="w-20 h-20 rounded-[1.5rem] mx-auto mb-4 flex items-center justify-center text-4xl font-display text-white shadow-2xl" style={{ backgroundColor: gameState.teams.find(t => t.id === lastMatchResult.awayTeamId)?.color || '#333' }}>
-                      {gameState.teams.find(t => t.id === lastMatchResult.awayTeamId)?.name?.substring(0, 1) || '?'}
-                    </div>
-                    <div className="font-display text-xl uppercase tracking-wider truncate">{gameState.teams.find(t => t.id === lastMatchResult.awayTeamId)?.name || 'Time Excluído'}</div>
-                  </div>
+                  <TeamDisplay team={gameState.teams.find(t => t.id === lastMatchResult.awayTeamId)} size="small" />
                 </div>
               </div>
 
-              <div className="space-y-4 mb-10 max-h-48 overflow-y-auto pr-4 custom-scrollbar">
+              <div className="space-y-3 sm:space-y-4 mb-6 sm:mb-10 max-h-40 sm:max-h-48 overflow-y-auto pr-2 sm:pr-4 custom-scrollbar">
                 {lastMatchResult.events.map((event, i) => (
-                  <div key={i} className="flex items-center gap-4 p-3 rounded-xl bg-white/5 border border-white/5">
-                    <span className="font-display text-xl text-braskick-muted w-10">{event.minute}'</span>
-                    <Zap className="w-5 h-5 text-braskick-ouro" />
+                  <div key={i} className="flex items-center gap-3 sm:gap-4 p-2 sm:p-3 rounded-xl bg-white/5 border border-white/5">
+                    <span className="font-display text-sm sm:text-xl text-braskick-muted w-8 sm:w-10">{event.minute}'</span>
+                    <Zap className="w-4 h-4 sm:w-5 h-5 text-braskick-ouro" />
                     <div className="flex-1">
-                      <span className="font-display text-xl block leading-none">{event.playerName}</span>
-                      <span className="text-[10px] font-bold text-braskick-muted uppercase tracking-widest">GOL PARA O {gameState.teams.find(t => t.id === event.teamId)?.name}</span>
+                      <span className="font-display text-sm sm:text-xl block leading-none">{event.playerName}</span>
+                      <span className="text-[8px] sm:text-[10px] font-bold text-braskick-muted uppercase tracking-widest">GOL PARA O {gameState.teams.find(t => t.id === event.teamId)?.name}</span>
                     </div>
                   </div>
                 ))}
                 {lastMatchResult.events.length === 0 && (
-                  <div className="text-center py-8 text-braskick-muted font-display text-xl uppercase tracking-widest opacity-50">SEM GOLS NA PARTIDA</div>
+                  <div className="text-center py-6 sm:py-8 text-braskick-muted font-display text-sm sm:text-xl uppercase tracking-widest opacity-50">SEM GOLS NA PARTIDA</div>
                 )}
               </div>
 
               <button
                 onClick={() => setShowMatchResult(false)}
-                className="w-full py-5 bg-braskick-verde hover:bg-emerald-500 text-white font-display text-2xl uppercase tracking-widest rounded-2xl shadow-xl shadow-braskick-verde/20 transition-all active:scale-95"
+                className="w-full py-4 sm:py-5 bg-braskick-verde hover:bg-emerald-500 text-white font-display text-lg sm:text-2xl uppercase tracking-widest rounded-xl sm:rounded-2xl shadow-xl shadow-braskick-verde/20 transition-all active:scale-95"
               >
                 CONTINUAR
               </button>
@@ -2484,7 +2783,7 @@ function SidebarItem({ icon, label, active, onClick }: { icon: React.ReactNode, 
   return (
     <button
       onClick={onClick}
-      className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl transition-all group relative overflow-hidden ${active
+      className={`w-full flex items-center gap-3 lg:gap-4 px-4 lg:px-5 py-3 lg:py-4 rounded-xl lg:rounded-2xl transition-all group relative overflow-hidden ${active
         ? 'bg-braskick-verde/10 text-braskick-verde border border-braskick-verde/20'
         : 'text-braskick-muted hover:bg-white/5 hover:text-braskick-texto'
         }`}
@@ -2493,7 +2792,7 @@ function SidebarItem({ icon, label, active, onClick }: { icon: React.ReactNode, 
       <span className={`${active ? 'text-braskick-verde' : 'text-braskick-muted group-hover:text-braskick-texto'}`}>
         {icon}
       </span>
-      <span className="font-display text-xl tracking-wider">{label}</span>
+      <span className="font-display text-lg lg:text-xl tracking-wider">{label}</span>
       {active && <ChevronRight className="ml-auto w-4 h-4" />}
     </button>
   );
@@ -2501,26 +2800,29 @@ function SidebarItem({ icon, label, active, onClick }: { icon: React.ReactNode, 
 
 function StatCard({ label, value, icon }: { label: string, value: string | number, icon: React.ReactNode }) {
   return (
-    <div className="braskick-card group hover:border-white/10 transition-all flex flex-col items-center text-center p-6 min-h-[160px] justify-center relative overflow-hidden">
-      <div className="absolute top-0 right-0 w-16 h-16 bg-white/5 -rotate-45 translate-x-8 -translate-y-8" />
-      <div className="p-3 rounded-2xl bg-white/5 group-hover:bg-white/10 transition-colors mb-4 relative z-10">
+    <div className="braskick-card group hover:border-white/10 transition-all flex flex-col items-center text-center p-4 lg:p-6 min-h-[120px] lg:min-h-[160px] justify-center relative overflow-hidden">
+      <div className="absolute top-0 right-0 w-12 lg:w-16 h-12 lg:h-16 bg-white/5 -rotate-45 translate-x-6 lg:translate-x-8 -translate-y-6 lg:-translate-y-8" />
+      <div className="p-2 lg:p-3 rounded-xl lg:rounded-2xl bg-white/5 group-hover:bg-white/10 transition-colors mb-2 lg:mb-4 relative z-10">
         {icon}
       </div>
-      <div className="text-4xl font-display italic leading-none mb-2 relative z-10">{value}</div>
-      <span className="text-[10px] font-bold text-braskick-muted uppercase tracking-[0.2em] relative z-10">{label}</span>
+      <div className="text-2xl lg:text-4xl font-display italic leading-none mb-1 lg:mb-2 relative z-10">{value}</div>
+      <span className="text-[8px] lg:text-[10px] font-bold text-braskick-muted uppercase tracking-[0.2em] relative z-10">{label}</span>
     </div>
   );
 }
 
-function TeamDisplay({ team }: { team: Team | undefined }) {
+function TeamDisplay({ team, size = 'large' }: { team: Team | undefined, size?: 'small' | 'large' }) {
   if (!team) return null;
   const isWhite = team.color.toLowerCase() === '#ffffff' || team.color.toLowerCase() === 'white';
+  const logoSize = size === 'large' ? 'w-12 h-12 sm:w-20 sm:h-20' : 'w-8 h-8 sm:w-12 sm:h-12';
+  const textSize = size === 'large' ? 'text-sm sm:text-xl' : 'text-[10px] sm:text-sm';
+  
   return (
-    <div className="text-center group">
-      <div className="w-20 h-20 rounded-[1.5rem] mx-auto mb-4 flex items-center justify-center text-4xl font-display shadow-2xl transition-transform group-hover:scale-110 overflow-hidden border border-white/10" style={{ backgroundColor: team.color, color: isWhite ? '#000000' : '#ffffff' }}>
+    <div className="text-center group flex flex-col items-center">
+      <div className={`${logoSize} rounded-xl sm:rounded-[1.5rem] mb-2 sm:mb-4 flex items-center justify-center text-xl sm:text-4xl font-display shadow-2xl transition-transform group-hover:scale-110 overflow-hidden border border-white/10`} style={{ backgroundColor: team.color, color: isWhite ? '#000000' : '#ffffff' }}>
         {team.logo ? <img src={team.logo} alt="" className="w-full h-full object-contain" referrerPolicy="no-referrer" /> : team.name.substring(0, 1)}
       </div>
-      <div className="font-display text-xl uppercase tracking-wider">{team.name}</div>
+      <div className={`font-display ${textSize} uppercase tracking-wider truncate max-w-[80px] sm:max-w-[120px]`}>{team.name}</div>
     </div>
   );
 }
