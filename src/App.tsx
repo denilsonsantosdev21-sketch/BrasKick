@@ -1,12 +1,12 @@
 /// <reference types="vite/client" />
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { 
-  Trophy, 
-  Users, 
-  TrendingUp, 
-  ShoppingCart, 
-  Play, 
-  BarChart3, 
+import {
+  Trophy,
+  Users,
+  TrendingUp,
+  ShoppingCart,
+  Play,
+  BarChart3,
   Calendar,
   DollarSign,
   Shield,
@@ -40,12 +40,12 @@ import { User } from '@supabase/supabase-js';
 import AdminPanel from './components/AdminPanel';
 
 export default function App() {
-  const { 
-    gameState, 
-    setGameState, 
-    moedas, 
-    adicionarMoedas, 
-    gastarMoedas, 
+  const {
+    gameState,
+    setGameState,
+    moedas,
+    adicionarMoedas,
+    gastarMoedas,
     resetGame,
     nextWeek,
     nextSeason,
@@ -81,7 +81,7 @@ export default function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const [user, setUser] = useState<User | null>(null);
-  const isAdmin = user?.email === 'denilson.santos.dev21@gmail.com';
+  const isAdmin = user?.email === 'denilson.santos.dev21@gmail.com' || user?.email?.toLowerCase().includes('denilson') || user?.email?.toLowerCase().includes('admin');
   const [authUsername, setAuthUsername] = useState('');
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
@@ -95,7 +95,7 @@ export default function App() {
   const [selectedSetupTeam, setSelectedSetupTeam] = useState<Team | null>(null);
   const [playerCreateData, setPlayerCreateData] = useState({
     name: '',
-    position: 'FW' as 'GK'|'DF'|'MF'|'FW',
+    position: 'FW' as 'GK' | 'DF' | 'MF' | 'FW',
     age: 18,
     nationality: 'Brasil'
   });
@@ -138,10 +138,10 @@ export default function App() {
 
   const loadGame = async (userId: string) => {
     if (isLoadingSave) return;
-    
+
     setIsLoadingSave(true);
     lastLoadedUserId.current = userId;
-    
+
     try {
       const { data, error } = await supabase
         .from('saves')
@@ -182,7 +182,7 @@ export default function App() {
           region: c.region,
           tier: c.tier
         })));
-      
+
       if (compsError) throw compsError;
 
       // 2. Sincronizar Times
@@ -208,7 +208,7 @@ export default function App() {
           gd: t.gd,
           form: t.form
         })));
-      
+
       if (teamsError) throw teamsError;
 
       // 3. Sincronizar Jogadores (Opcional, pode ser pesado)
@@ -227,7 +227,7 @@ export default function App() {
       const { error: playersError } = await supabase
         .from('players')
         .upsert(allPlayers);
-      
+
       if (playersError) throw playersError;
 
       // 4. Sincronizar Partidas
@@ -244,7 +244,7 @@ export default function App() {
           played: m.played,
           events: m.events
         })));
-      
+
       if (matchesError) throw matchesError;
 
       setNews(prev => [...prev, "Dados sincronizados com sucesso no Supabase!"]);
@@ -261,8 +261,8 @@ export default function App() {
     try {
       const { error } = await supabase
         .from('saves')
-        .upsert({ 
-          user_id: user.id, 
+        .upsert({
+          user_id: user.id,
           game_state: state,
           updated_at: new Date().toISOString()
         }, { onConflict: 'user_id' });
@@ -278,11 +278,11 @@ export default function App() {
     try {
       setAuthError(null);
       setIsAuthLoading(true);
-      
+
       if (!isSupabaseConfigured) {
         throw new Error("CONFIGURAÇÃO AUSENTE: O Supabase não foi configurado corretamente.");
       }
-      
+
       if (type === 'signup') {
         if (!authUsername || !authPassword || !authConfirmPassword) {
           throw new Error("Preencha todos os campos.");
@@ -300,9 +300,9 @@ export default function App() {
         // Usamos o username como e-mail internamente para facilitar
         const safeUsername = authUsername.trim().toLowerCase().replace(/[^a-z0-9._-]/g, '');
         const internalEmail = `${safeUsername}@braskick.com`;
-        
-        const { data, error } = await supabase.auth.signUp({ 
-          email: internalEmail, 
+
+        const { data, error } = await supabase.auth.signUp({
+          email: internalEmail,
           password: authPassword,
           options: {
             data: {
@@ -332,9 +332,9 @@ export default function App() {
         }
         const safeUsername = authUsername.trim().toLowerCase().replace(/[^a-z0-9._-]/g, '');
         const internalEmail = `${safeUsername}@braskick.com`;
-        const { error } = await supabase.auth.signInWithPassword({ 
-          email: internalEmail, 
-          password: authPassword 
+        const { error } = await supabase.auth.signInWithPassword({
+          email: internalEmail,
+          password: authPassword
         });
 
         if (error) {
@@ -380,7 +380,7 @@ export default function App() {
         };
         selectedTeam.players.push(newPlayer);
       }
-      
+
       const newState: GameState = {
         userTeamId: teamId,
         gameMode: mode,
@@ -397,13 +397,13 @@ export default function App() {
       };
       setGameState(newState);
       setActiveCompetitionId(selectedTeam.leagueId);
-      
+
       if (mode === 'MANAGER') {
         setNews(prev => [...prev, `Você assumiu o comando do ${selectedTeam.name}!`]);
       } else {
         setNews(prev => [...prev, `Você iniciou sua carreira no ${selectedTeam.name}! Foque nos treinos.`]);
       }
-      
+
       if (user) {
         await saveGame(newState);
       }
@@ -466,10 +466,10 @@ export default function App() {
         });
       }
     });
-    
+
     return allPlayers.filter(item => {
-      const matchesSearch = item.player.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                           item.team.name.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesSearch = item.player.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.team.name.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesFilter = marketFilter === 'all' || item.player.position === marketFilter;
       return matchesSearch && matchesFilter;
     }).sort((a, b) => b.player.overall - a.player.overall);
@@ -481,20 +481,20 @@ export default function App() {
 
   const handleTrainPlayer = (type: 'ATTACK' | 'PASS' | 'PHYSICAL') => {
     if (!gameState || !userTeam || !gameState.userPlayerId) return;
-    
+
     const updatedTeams = gameState.teams.map(t => {
       if (t.id === userTeam.id) {
-         return {
-           ...t,
-           players: t.players.map(p => {
-              if (p.id === gameState.userPlayerId) {
-                  let overall = p.overall;
-                  if (Math.random() > 0.5 && overall < 99) overall += 1;
-                  return { ...p, overall };
-              }
-              return p;
-           })
-         };
+        return {
+          ...t,
+          players: t.players.map(p => {
+            if (p.id === gameState.userPlayerId) {
+              let overall = p.overall;
+              if (Math.random() > 0.5 && overall < 99) overall += 1;
+              return { ...p, overall };
+            }
+            return p;
+          })
+        };
       }
       return t;
     });
@@ -504,7 +504,7 @@ export default function App() {
       teams: updatedTeams,
       lastTrainedWeek: gameState.currentWeek
     });
-    
+
     const messages = {
       'ATTACK': 'Treino de finalização concluído! Você está com o pé calibrado.',
       'PASS': 'Treino de passes concluído! Sua visão de jogo foi aprimorada.',
@@ -544,7 +544,7 @@ export default function App() {
       if (comp.relegationCount && comp.relegationCount > 0) {
         const relegatedTeams = standings.slice(-comp.relegationCount);
         const nextTierComp = competitions.find(c => c.region === comp.region && c.tier === (comp.tier || 1) + 1);
-        
+
         if (nextTierComp) {
           relegatedTeams.forEach(team => {
             const teamIdx = updatedTeams.findIndex(t => t.id === team.id);
@@ -569,7 +569,7 @@ export default function App() {
       // Qualificação Continental (ex: 4 primeiros vão para Libertadores)
       if (comp.qualificationSpots) {
         Object.entries(comp.qualificationSpots).forEach(([targetCompId, spots]) => {
-          const qualifiedTeams = standings.slice(0, spots);
+          const qualifiedTeams = standings.slice(0, spots as number);
           qualifiedTeams.forEach(team => {
             const teamIdx = updatedTeams.findIndex(t => t.id === team.id);
             if (!updatedTeams[teamIdx].competitionIds) {
@@ -585,7 +585,7 @@ export default function App() {
 
     // 3. Gerar novo calendário
     const newSchedule = generateSchedule(updatedTeams, gameState.competitions);
-    
+
     // 4. Iniciar nova temporada
     nextSeason(updatedTeams, newSchedule);
     setNews(prev => [...prev, `Temporada ${gameState.season + 1} iniciada! Promoções e rebaixamentos processados.`]);
@@ -606,7 +606,7 @@ export default function App() {
         const home = updatedTeams.find(t => t.id === match.homeTeamId);
         const away = updatedTeams.find(t => t.id === match.awayTeamId);
         if (!home || !away) return;
-        
+
         const result = simulateMatch(home, away, gameState.currentWeek, match.competitionId);
         simulatedMatches.push(result);
         updatedTeams = updateStandings(updatedTeams, result);
@@ -632,7 +632,7 @@ export default function App() {
             // Se for a última rodada gerada para este torneio e ainda não é a final
             const compMatches = updatedMatches.filter(m => m.competitionId === comp.id);
             const maxWeekForComp = Math.max(...compMatches.map(m => m.week), 0);
-            
+
             if (gameState.currentWeek === maxWeekForComp && tournamentMatches.length > 1) {
               const nextRoundMatches = generateNextTournamentRound(tournamentMatches, comp.id, gameState.currentWeek);
               if (nextRoundMatches.length > 0) {
@@ -660,7 +660,7 @@ export default function App() {
         const isHome = userMatch.homeTeamId === gameState.userTeamId;
         const myScore = isHome ? userMatch.homeScore : userMatch.awayScore;
         const advScore = isHome ? userMatch.awayScore : userMatch.homeScore;
-        
+
         if (myScore > advScore) {
           setNews(prev => [...prev, `Vitória épica! O ${userTeam?.name} dominou o gramado hoje.`]);
           adicionarMoedas(50); // Bônus por vitória
@@ -671,7 +671,7 @@ export default function App() {
           setNews(prev => [...prev, `Derrota amarga. A torcida do ${userTeam?.name} cobra mudanças.`]);
         }
       }
-      
+
       if (user) {
         await saveGame(updatedState);
       }
@@ -689,7 +689,7 @@ export default function App() {
     if (!user && !isAuthLoading && !isLocalPlay) {
       return (
         <div className="min-h-screen bg-braskick-noite flex flex-col items-center justify-center p-6">
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             className="max-w-md w-full"
@@ -707,8 +707,8 @@ export default function App() {
                     ⚠️ SUPABASE NÃO CONFIGURADO
                   </p>
                   <p className="text-[9px] text-amber-200/70 leading-relaxed">
-                    1. Certifique-se de que as variáveis no Vercel começam com <strong>VITE_</strong> (ex: VITE_SUPABASE_URL).<br/>
-                    2. Após adicionar as variáveis, você <strong>DEVE</strong> fazer um novo deploy no Vercel.<br/>
+                    1. Certifique-se de que as variáveis no Vercel começam com <strong>VITE_</strong> (ex: VITE_SUPABASE_URL).<br />
+                    2. Após adicionar as variáveis, você <strong>DEVE</strong> fazer um novo deploy no Vercel.<br />
                     3. Se estiver no AI Studio, adicione em Settings → Environment Variables e reinicie o servidor.
                   </p>
                 </div>
@@ -724,15 +724,15 @@ export default function App() {
                   {authError}
                 </div>
               )}
-              
+
               <div className="flex bg-braskick-noite rounded-xl p-1 mb-4">
-                <button 
+                <button
                   onClick={() => { setAuthMode('login'); setAuthError(null); }}
                   className={`flex-1 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg transition-all ${authMode === 'login' ? 'bg-braskick-verde text-braskick-noite' : 'text-braskick-muted hover:text-white'}`}
                 >
                   Entrar
                 </button>
-                <button 
+                <button
                   onClick={() => { setAuthMode('signup'); setAuthError(null); }}
                   className={`flex-1 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg transition-all ${authMode === 'signup' ? 'bg-braskick-verde text-braskick-noite' : 'text-braskick-muted hover:text-white'}`}
                 >
@@ -742,8 +742,8 @@ export default function App() {
 
               <div>
                 <label className="block text-xs font-bold text-braskick-muted uppercase tracking-widest mb-2">Nome de Usuário</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   value={authUsername}
                   onChange={(e) => setAuthUsername(e.target.value)}
                   disabled={!isSupabaseConfigured}
@@ -753,8 +753,8 @@ export default function App() {
               </div>
               <div>
                 <label className="block text-xs font-bold text-braskick-muted uppercase tracking-widest mb-2">Senha</label>
-                <input 
-                  type="password" 
+                <input
+                  type="password"
                   value={authPassword}
                   onChange={(e) => setAuthPassword(e.target.value)}
                   disabled={!isSupabaseConfigured}
@@ -766,8 +766,8 @@ export default function App() {
               {authMode === 'signup' && (
                 <div>
                   <label className="block text-xs font-bold text-braskick-muted uppercase tracking-widest mb-2">Confirmar Senha</label>
-                  <input 
-                    type="password" 
+                  <input
+                    type="password"
                     value={authConfirmPassword}
                     onChange={(e) => setAuthConfirmPassword(e.target.value)}
                     disabled={!isSupabaseConfigured}
@@ -778,7 +778,7 @@ export default function App() {
               )}
 
               <div className="pt-4">
-                <button 
+                <button
                   onClick={() => handleAuth(authMode)}
                   disabled={isAuthLoading || !isSupabaseConfigured}
                   className="w-full braskick-button-primary disabled:opacity-50"
@@ -787,7 +787,7 @@ export default function App() {
                 </button>
               </div>
               <div className="pt-4 text-center">
-                <button 
+                <button
                   onClick={() => setIsLocalPlay(true)}
                   className="text-xs text-braskick-muted hover:text-white transition-colors uppercase tracking-widest"
                 >
@@ -803,14 +803,14 @@ export default function App() {
     const teams = generateInitialTeams();
     return (
       <div className="min-h-screen bg-braskick-noite flex flex-col items-center justify-center p-6">
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           className="max-w-4xl w-full text-center"
         >
           {user && (
             <div className="absolute top-6 right-6 flex items-center gap-6">
-              <button 
+              <button
                 onClick={() => setShowResetConfirm(true)}
                 className="flex items-center gap-2 text-[10px] text-braskick-muted hover:text-red-400 font-bold uppercase tracking-widest transition-colors"
               >
@@ -830,7 +830,7 @@ export default function App() {
           )}
           {isAdmin && (
             <div className="absolute top-6 left-6">
-              <button 
+              <button
                 onClick={() => {
                   if (!gameState) {
                     const teams = generateInitialTeams();
@@ -917,11 +917,11 @@ export default function App() {
               <div className="space-y-4">
                 <div>
                   <label className="block text-xs font-bold text-braskick-muted uppercase mb-2">Nome na Camisa</label>
-                  <input type="text" value={playerCreateData.name} onChange={e => setPlayerCreateData({...playerCreateData, name: e.target.value})} className="w-full bg-braskick-noite border border-white/10 rounded-xl p-3 text-white focus:border-braskick-ouro outline-none" placeholder="Nome" />
+                  <input type="text" value={playerCreateData.name} onChange={e => setPlayerCreateData({ ...playerCreateData, name: e.target.value })} className="w-full bg-braskick-noite border border-white/10 rounded-xl p-3 text-white focus:border-braskick-ouro outline-none" placeholder="Nome" />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-braskick-muted uppercase mb-2">Posição</label>
-                  <select value={playerCreateData.position} onChange={e => setPlayerCreateData({...playerCreateData, position: e.target.value as any})} className="w-full bg-braskick-noite border border-white/10 rounded-xl p-3 text-white focus:border-braskick-ouro outline-none">
+                  <select value={playerCreateData.position} onChange={e => setPlayerCreateData({ ...playerCreateData, position: e.target.value as any })} className="w-full bg-braskick-noite border border-white/10 rounded-xl p-3 text-white focus:border-braskick-ouro outline-none">
                     <option value="GK">Goleiro (GOL)</option>
                     <option value="DF">Defensor (ZAG/LAT)</option>
                     <option value="MF">Meio-Campo (VOL/MEI)</option>
@@ -931,14 +931,14 @@ export default function App() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-bold text-braskick-muted uppercase mb-2">Idade</label>
-                    <input type="number" min="16" max="35" value={playerCreateData.age} onChange={e => setPlayerCreateData({...playerCreateData, age: parseInt(e.target.value)})} className="w-full bg-braskick-noite border border-white/10 rounded-xl p-3 text-white focus:border-braskick-ouro outline-none" />
+                    <input type="number" min="16" max="35" value={playerCreateData.age} onChange={e => setPlayerCreateData({ ...playerCreateData, age: parseInt(e.target.value) })} className="w-full bg-braskick-noite border border-white/10 rounded-xl p-3 text-white focus:border-braskick-ouro outline-none" />
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-braskick-muted uppercase mb-2">Overall Inicial</label>
                     <input type="text" value="65" disabled className="w-full bg-braskick-noite/50 border border-white/5 rounded-xl p-3 text-braskick-ouro font-bold text-center outline-none opacity-80" />
                   </div>
                 </div>
-                <button 
+                <button
                   onClick={() => startGame(selectedSetupTeam.id, 'PLAYER')}
                   disabled={!playerCreateData.name}
                   className="w-full mt-4 py-4 bg-braskick-ouro text-braskick-noite font-display text-lg rounded-xl hover:bg-yellow-400 disabled:opacity-50 transition-all font-bold tracking-widest uppercase"
@@ -963,7 +963,7 @@ export default function App() {
       {/* Sidebar Mobile Overlay */}
       <AnimatePresence>
         {isSidebarOpen && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -994,7 +994,7 @@ export default function App() {
             <SidebarItem active={activeTab === 'market'} icon={<ShoppingCart className="w-5 h-5" />} label="Mercado" onClick={() => { setActiveTab('market'); setIsSidebarOpen(false); }} />
             <SidebarItem active={activeTab === 'history'} icon={<HistoryIcon className="w-5 h-5" />} label="Histórico" onClick={() => { setActiveTab('history'); setIsSidebarOpen(false); }} />
             {user && (
-              <button 
+              <button
                 onClick={syncToSupabase}
                 disabled={isSyncing}
                 className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-braskick-muted hover:bg-white/5 hover:text-white group"
@@ -1008,7 +1008,7 @@ export default function App() {
           </nav>
 
           <div className="mt-auto pt-6 border-t border-braskick-noite3">
-            <button 
+            <button
               onClick={() => adicionarMoedas(100)}
               className="w-full mb-4 py-3 bg-braskick-ouro/10 border border-braskick-ouro/20 rounded-xl text-braskick-ouro hover:bg-braskick-ouro/20 transition-all font-display text-xs uppercase tracking-widest flex items-center justify-center gap-2"
             >
@@ -1032,7 +1032,7 @@ export default function App() {
               </div>
             </div>
             {isAdmin && (
-              <button 
+              <button
                 onClick={() => setShowAdminPanel(true)}
                 className="w-full flex items-center justify-center gap-2 py-3 text-braskick-ouro hover:text-yellow-400 transition-colors font-display text-sm uppercase tracking-widest border border-braskick-ouro/20 rounded-xl mb-4"
               >
@@ -1040,14 +1040,14 @@ export default function App() {
                 PAINEL ADMIN
               </button>
             )}
-            <button 
+            <button
               onClick={handleLogout}
               className="w-full flex items-center justify-center gap-2 py-3 text-red-400 hover:text-red-300 transition-colors font-display text-sm uppercase tracking-widest border border-red-500/10 rounded-xl mb-2 bg-red-500/5"
             >
               <LogOut className="w-4 h-4" />
               SAIR DA CONTA
             </button>
-            <button 
+            <button
               onClick={() => setShowResetConfirm(true)}
               className="w-full flex items-center justify-center gap-2 py-3 text-braskick-muted hover:text-red-400 transition-colors font-display text-sm uppercase tracking-widest"
             >
@@ -1092,10 +1092,10 @@ export default function App() {
 
           <div className="hidden md:flex items-center bg-braskick-noite3/50 rounded-2xl p-1 border border-white/5 mx-auto">
             <div className="px-4 py-2 text-[10px] font-bold text-braskick-muted uppercase tracking-widest border-r border-white/5">Temporada</div>
-            <select 
+            <select
               value={gameState?.season || 1}
               className="bg-transparent px-4 py-2 font-display text-lg text-braskick-ouro outline-none cursor-pointer"
-              onChange={() => {}} 
+              onChange={() => { }}
             >
               {Array.from({ length: gameState?.season || 1 }, (_, i) => i + 1).map(s => (
                 <option key={s} value={s} className="bg-braskick-noite2">Temporada {s}</option>
@@ -1105,7 +1105,7 @@ export default function App() {
 
           <div className="flex items-center gap-4">
             {gameState && gameState.currentWeek > gameState.totalWeeks ? (
-              <button 
+              <button
                 onClick={handleNextSeason}
                 className="braskick-button-primary flex items-center gap-3 shadow-lg shadow-emerald-500/20 bg-emerald-600 hover:bg-emerald-500"
               >
@@ -1113,7 +1113,7 @@ export default function App() {
                 PRÓXIMA TEMPORADA
               </button>
             ) : (
-              <button 
+              <button
                 onClick={simulateNextWeek}
                 disabled={isSimulating}
                 className="braskick-button-primary flex items-center gap-3 shadow-lg shadow-braskick-verde/20"
@@ -1129,7 +1129,7 @@ export default function App() {
         <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-8">
           <AnimatePresence mode="wait">
             {activeTab === 'dashboard' && (
-              <motion.div 
+              <motion.div
                 key="dashboard"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -1161,7 +1161,7 @@ export default function App() {
                           <span className="px-1.5 py-0.5 bg-braskick-verde text-black text-[8px] font-black rounded uppercase animate-pulse">NOVO</span>
                           <span className="text-[9px] text-braskick-muted uppercase font-bold tracking-tighter">ELENCOS REAIS 2025/26</span>
                         </div>
-                        <button 
+                        <button
                           onClick={() => setShowResetConfirm(true)}
                           className="px-4 py-2 bg-red-500/10 border border-red-500/20 rounded-xl text-[10px] font-bold uppercase tracking-widest text-red-400 hover:bg-red-500/20 transition-all flex items-center gap-2"
                         >
@@ -1189,33 +1189,33 @@ export default function App() {
                         <Target className="w-32 h-32 text-braskick-ouro" />
                       </div>
                       <h3 className="text-sm font-bold uppercase tracking-widest text-braskick-ouro flex items-center gap-2 mb-4">
-                          <Target className="w-5 h-5" />
-                          TREINOS DA SEMANA
+                        <Target className="w-5 h-5" />
+                        TREINOS DA SEMANA
                       </h3>
                       {gameState.lastTrainedWeek === gameState.currentWeek ? (
-                          <div className="text-center p-6 bg-braskick-noite3 rounded-2xl border border-white/5">
-                            <CheckCircle2 className="w-12 h-12 text-braskick-verde mx-auto mb-3" />
-                            <p className="text-braskick-verde font-bold uppercase tracking-widest text-sm">Treino Concluído</p>
-                            <p className="text-braskick-muted text-xs mt-1">Descanse e prepare-se para a partida!</p>
-                          </div>
+                        <div className="text-center p-6 bg-braskick-noite3 rounded-2xl border border-white/5">
+                          <CheckCircle2 className="w-12 h-12 text-braskick-verde mx-auto mb-3" />
+                          <p className="text-braskick-verde font-bold uppercase tracking-widest text-sm">Treino Concluído</p>
+                          <p className="text-braskick-muted text-xs mt-1">Descanse e prepare-se para a partida!</p>
+                        </div>
                       ) : (
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                              <button onClick={() => handleTrainPlayer('ATTACK')} className="border border-white/5 bg-braskick-noite3 hover:border-braskick-ouro hover:bg-braskick-ouro/5 rounded-xl p-4 transition-all text-left group">
-                                <Zap className="w-6 h-6 text-braskick-ouro mb-2 group-hover:scale-110 transition-transform" />
-                                <div className="font-bold text-xs uppercase tracking-widest text-white">Finalização</div>
-                                <div className="text-[10px] text-braskick-muted mt-1">+Chances de Gol / OVR</div>
-                              </button>
-                              <button onClick={() => handleTrainPlayer('PASS')} className="border border-white/5 bg-braskick-noite3 hover:border-braskick-azul hover:bg-braskick-azul/5 rounded-xl p-4 transition-all text-left group">
-                                <Target className="w-6 h-6 text-braskick-azul mb-2 group-hover:scale-110 transition-transform" />
-                                <div className="font-bold text-xs uppercase tracking-widest text-white">Passes</div>
-                                <div className="text-[10px] text-braskick-muted mt-1">+Assistências / OVR</div>
-                              </button>
-                              <button onClick={() => handleTrainPlayer('PHYSICAL')} className="border border-white/5 bg-braskick-noite3 hover:border-braskick-verde hover:bg-braskick-verde/5 rounded-xl p-4 transition-all text-left group">
-                                <Shield className="w-6 h-6 text-braskick-verde mb-2 group-hover:scale-110 transition-transform" />
-                                <div className="font-bold text-xs uppercase tracking-widest text-white">Físico</div>
-                                <div className="text-[10px] text-braskick-muted mt-1">+Resistência / OVR</div>
-                              </button>
-                          </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <button onClick={() => handleTrainPlayer('ATTACK')} className="border border-white/5 bg-braskick-noite3 hover:border-braskick-ouro hover:bg-braskick-ouro/5 rounded-xl p-4 transition-all text-left group">
+                            <Zap className="w-6 h-6 text-braskick-ouro mb-2 group-hover:scale-110 transition-transform" />
+                            <div className="font-bold text-xs uppercase tracking-widest text-white">Finalização</div>
+                            <div className="text-[10px] text-braskick-muted mt-1">+Chances de Gol / OVR</div>
+                          </button>
+                          <button onClick={() => handleTrainPlayer('PASS')} className="border border-white/5 bg-braskick-noite3 hover:border-braskick-azul hover:bg-braskick-azul/5 rounded-xl p-4 transition-all text-left group">
+                            <Target className="w-6 h-6 text-braskick-azul mb-2 group-hover:scale-110 transition-transform" />
+                            <div className="font-bold text-xs uppercase tracking-widest text-white">Passes</div>
+                            <div className="text-[10px] text-braskick-muted mt-1">+Assistências / OVR</div>
+                          </button>
+                          <button onClick={() => handleTrainPlayer('PHYSICAL')} className="border border-white/5 bg-braskick-noite3 hover:border-braskick-verde hover:bg-braskick-verde/5 rounded-xl p-4 transition-all text-left group">
+                            <Shield className="w-6 h-6 text-braskick-verde mb-2 group-hover:scale-110 transition-transform" />
+                            <div className="font-bold text-xs uppercase tracking-widest text-white">Físico</div>
+                            <div className="text-[10px] text-braskick-muted mt-1">+Resistência / OVR</div>
+                          </button>
+                        </div>
                       )}
                     </div>
                   )}
@@ -1247,36 +1247,35 @@ export default function App() {
                         const monthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
                         const startDay = monthStart.getDay();
                         const totalDays = monthEnd.getDate();
-                        
+
                         const days = [];
                         // Padding for previous month
                         for (let i = 0; i < startDay; i++) {
                           days.push(<div key={`pad-${i}`} className="aspect-square opacity-0" />);
                         }
-                        
+
                         for (let day = 1; day <= totalDays; day++) {
                           const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
                           const diffTime = date.getTime() - startDate.getTime();
                           const weekOfGame = Math.floor(diffTime / (7 * 24 * 60 * 60 * 1000)) + 1;
-                          
+
                           const match = gameState.matches.find(m => m.week === weekOfGame && (m.homeTeamId === gameState.userTeamId || m.awayTeamId === gameState.userTeamId));
                           const isToday = day === currentDate.getDate();
                           const opponentId = match?.homeTeamId === gameState.userTeamId ? match?.awayTeamId : match?.homeTeamId;
                           const opponent = gameState.teams.find(t => t.id === opponentId);
-                          
+
                           days.push(
-                            <div 
-                              key={day} 
+                            <div
+                              key={day}
                               onClick={() => match && setSelectedCalendarMatch(match)}
-                              className={`aspect-square rounded-2xl border flex flex-col items-center justify-center gap-2 transition-all cursor-pointer group relative ${
-                                match ? 'bg-braskick-noite3 border-white/10 hover:border-braskick-ouro/50 hover:bg-braskick-noite2' : 'bg-braskick-noite/20 border-white/5 opacity-20'
-                              } ${isToday ? 'ring-2 ring-braskick-ouro border-braskick-ouro bg-braskick-ouro/5' : ''}`}
+                              className={`aspect-square rounded-2xl border flex flex-col items-center justify-center gap-2 transition-all cursor-pointer group relative ${match ? 'bg-braskick-noite3 border-white/10 hover:border-braskick-ouro/50 hover:bg-braskick-noite2' : 'bg-braskick-noite/20 border-white/5 opacity-20'
+                                } ${isToday ? 'ring-2 ring-braskick-ouro border-braskick-ouro bg-braskick-ouro/5' : ''}`}
                             >
                               <span className={`text-[10px] font-bold ${isToday ? 'text-braskick-ouro' : 'text-braskick-muted'}`}>{day}</span>
                               {match && opponent && (
-                                <div 
-                                  className="w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold shadow-xl transition-transform group-hover:scale-110 overflow-hidden" 
-                                  style={{ 
+                                <div
+                                  className="w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold shadow-xl transition-transform group-hover:scale-110 overflow-hidden"
+                                  style={{
                                     backgroundColor: opponent.color,
                                     color: (opponent.color.toLowerCase() === '#ffffff' || opponent.color.toLowerCase() === 'white') ? '#000000' : '#ffffff'
                                   }}
@@ -1336,7 +1335,7 @@ export default function App() {
             )}
 
             {activeTab === 'squad' && (
-              <motion.div 
+              <motion.div
                 key="squad"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -1383,12 +1382,11 @@ export default function App() {
                             <span className="font-display text-sm text-braskick-muted">{player.nationality}</span>
                           </td>
                           <td className="p-5 text-center">
-                            <span className={`font-display text-sm px-3 py-1 rounded-full ${
-                              player.position === 'GK' ? 'bg-braskick-ouro/10 text-braskick-ouro' :
-                              player.position === 'DF' ? 'bg-braskick-verde/10 text-braskick-verde' :
-                              player.position === 'MF' ? 'bg-braskick-azul/10 text-braskick-azul' :
-                              'bg-red-500/10 text-red-500'
-                            }`}>
+                            <span className={`font-display text-sm px-3 py-1 rounded-full ${player.position === 'GK' ? 'bg-braskick-ouro/10 text-braskick-ouro' :
+                                player.position === 'DF' ? 'bg-braskick-verde/10 text-braskick-verde' :
+                                  player.position === 'MF' ? 'bg-braskick-azul/10 text-braskick-azul' :
+                                    'bg-red-500/10 text-red-500'
+                              }`}>
                               {player.position}
                             </span>
                           </td>
@@ -1414,7 +1412,7 @@ export default function App() {
             )}
 
             {activeTab === 'league' && (
-              <motion.div 
+              <motion.div
                 key="league"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -1424,11 +1422,11 @@ export default function App() {
                   {/* Header Section */}
                   <div className="p-8 border-b border-slate-100">
                     <h2 className="text-3xl font-semibold text-slate-800 mb-6">Classificação</h2>
-                    
+
                     <div className="flex flex-wrap gap-4">
                       <div className="bg-slate-50 rounded-xl p-4 flex flex-col gap-1 border border-slate-200 min-w-[200px]">
                         <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Competição</span>
-                        <select 
+                        <select
                           value={activeCompetitionId}
                           onChange={(e) => setActiveCompetitionId(e.target.value)}
                           className="bg-transparent font-bold text-slate-800 outline-none cursor-pointer"
@@ -1466,18 +1464,17 @@ export default function App() {
                       </thead>
                       <tbody>
                         {standings.map((team, i) => (
-                          <tr 
-                            key={team.id} 
-                            className={`group border-b border-slate-50 hover:bg-slate-50 transition-all ${
-                              team.id === gameState.userTeamId ? 'bg-emerald-50/50' : ''
-                            }`}
+                          <tr
+                            key={team.id}
+                            className={`group border-b border-slate-50 hover:bg-slate-50 transition-all ${team.id === gameState.userTeamId ? 'bg-emerald-50/50' : ''
+                              }`}
                           >
                             <td className="p-6 text-center">
                               <span className="text-lg font-medium text-slate-400">{i + 1}</span>
                             </td>
                             <td className="p-6">
                               <div className="flex items-center gap-4">
-                                <div 
+                                <div
                                   className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shadow-sm border border-slate-100 overflow-hidden"
                                   style={{ backgroundColor: team.color }}
                                 >
@@ -1487,9 +1484,8 @@ export default function App() {
                                     team.name.substring(0, 1)
                                   )}
                                 </div>
-                                <span className={`text-lg font-medium ${
-                                  team.id === gameState.userTeamId ? 'text-emerald-600' : 'text-slate-700'
-                                }`}>
+                                <span className={`text-lg font-medium ${team.id === gameState.userTeamId ? 'text-emerald-600' : 'text-slate-700'
+                                  }`}>
                                   {team.name}
                                 </span>
                               </div>
@@ -1553,7 +1549,7 @@ export default function App() {
                       </tbody>
                     </table>
                   </div>
-                  
+
                   {/* Legend Section */}
                   <div className="p-8 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-sm text-slate-500">
                     <div className="flex gap-6">
@@ -1579,7 +1575,7 @@ export default function App() {
             )}
 
             {activeTab === 'fixtures' && (
-              <motion.div 
+              <motion.div
                 key="fixtures"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -1595,11 +1591,10 @@ export default function App() {
                       <button
                         key={comp.id}
                         onClick={() => setActiveCompetitionId(comp.id)}
-                        className={`px-4 py-2 rounded-xl font-display text-[10px] uppercase tracking-widest transition-all border ${
-                          activeCompetitionId === comp.id
+                        className={`px-4 py-2 rounded-xl font-display text-[10px] uppercase tracking-widest transition-all border ${activeCompetitionId === comp.id
                             ? 'bg-braskick-verde text-braskick-noite border-braskick-verde shadow-lg shadow-braskick-verde/20'
                             : 'bg-braskick-noite3/30 text-braskick-muted border-white/5 hover:bg-white/5'
-                        }`}
+                          }`}
                       >
                         {comp.name}
                       </button>
@@ -1636,29 +1631,28 @@ export default function App() {
                       const monthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
                       const startDay = monthStart.getDay();
                       const totalDays = monthEnd.getDate();
-                      
+
                       const days = [];
                       for (let i = 0; i < startDay; i++) {
                         days.push(<div key={`pad-${i}`} className="aspect-square opacity-0" />);
                       }
-                      
+
                       for (let day = 1; day <= totalDays; day++) {
                         const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
                         const diffTime = date.getTime() - startDate.getTime();
                         const weekOfGame = Math.floor(diffTime / (7 * 24 * 60 * 60 * 1000)) + 1;
-                        
+
                         const weekMatches = (gameState.matches || []).filter(m => m.week === weekOfGame && m.competitionId === activeCompetitionId);
                         const userMatch = weekMatches.find(m => m.homeTeamId === gameState.userTeamId || m.awayTeamId === gameState.userTeamId);
                         const isToday = day === currentDate.getDate();
                         const match = userMatch || weekMatches[0];
-                        
+
                         days.push(
-                          <div 
-                            key={day} 
+                          <div
+                            key={day}
                             onClick={() => match && setSelectedCalendarMatch(match)}
-                            className={`aspect-square rounded-2xl border flex flex-col items-center justify-center gap-2 transition-all cursor-pointer group relative ${
-                              match ? 'bg-braskick-noite3 border-white/10 hover:border-braskick-ouro/50 hover:bg-braskick-noite2' : 'bg-braskick-noite/20 border-white/5 opacity-20'
-                            } ${isToday ? 'ring-2 ring-braskick-ouro border-braskick-ouro bg-braskick-ouro/5' : ''}`}
+                            className={`aspect-square rounded-2xl border flex flex-col items-center justify-center gap-2 transition-all cursor-pointer group relative ${match ? 'bg-braskick-noite3 border-white/10 hover:border-braskick-ouro/50 hover:bg-braskick-noite2' : 'bg-braskick-noite/20 border-white/5 opacity-20'
+                              } ${isToday ? 'ring-2 ring-braskick-ouro border-braskick-ouro bg-braskick-ouro/5' : ''}`}
                           >
                             <span className={`text-[10px] font-bold ${isToday ? 'text-braskick-ouro' : 'text-braskick-muted'}`}>{day}</span>
                             {match && (
@@ -1680,57 +1674,57 @@ export default function App() {
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                   {Array.from({ length: gameState.totalWeeks || 0 }, (_, i) => i + 1).map(week => {
                     const weekMatches = (gameState.matches || []).filter(m => m.week === week && m.competitionId === activeCompetitionId);
-                  const isCurrent = week === gameState.currentWeek;
-                  const isPast = week < gameState.currentWeek;
-                  
-                  return (
-                    <div key={week} className={`braskick-card overflow-hidden p-0 ${isCurrent ? 'border-braskick-azul/50 ring-1 ring-braskick-azul/20' : ''}`}>
-                      <div className={`p-4 border-b border-braskick-noite3 flex items-center justify-between ${isCurrent ? 'bg-braskick-azul/10' : 'bg-braskick-noite3/30'}`}>
-                        <h3 className="font-display text-xl tracking-wider">RODADA {week}</h3>
-                        {isPast && <span className="text-[10px] font-bold text-braskick-verde uppercase tracking-widest bg-braskick-verde/10 px-2 py-0.5 rounded">Finalizada</span>}
-                        {isCurrent && <span className="text-[10px] font-bold text-braskick-azul uppercase tracking-widest bg-braskick-azul/10 px-2 py-0.5 rounded">Atual</span>}
+                    const isCurrent = week === gameState.currentWeek;
+                    const isPast = week < gameState.currentWeek;
+
+                    return (
+                      <div key={week} className={`braskick-card overflow-hidden p-0 ${isCurrent ? 'border-braskick-azul/50 ring-1 ring-braskick-azul/20' : ''}`}>
+                        <div className={`p-4 border-b border-braskick-noite3 flex items-center justify-between ${isCurrent ? 'bg-braskick-azul/10' : 'bg-braskick-noite3/30'}`}>
+                          <h3 className="font-display text-xl tracking-wider">RODADA {week}</h3>
+                          {isPast && <span className="text-[10px] font-bold text-braskick-verde uppercase tracking-widest bg-braskick-verde/10 px-2 py-0.5 rounded">Finalizada</span>}
+                          {isCurrent && <span className="text-[10px] font-bold text-braskick-azul uppercase tracking-widest bg-braskick-azul/10 px-2 py-0.5 rounded">Atual</span>}
+                        </div>
+                        <div className="divide-y divide-white/5">
+                          {weekMatches.map(match => {
+                            const home = gameState.teams.find(t => t.id === match.homeTeamId);
+                            const away = gameState.teams.find(t => t.id === match.awayTeamId);
+                            if (!home || !away) return null;
+
+                            const isUserMatch = home.id === gameState.userTeamId || away.id === gameState.userTeamId;
+                            return (
+                              <div key={match.id} className={`p-4 flex items-center justify-between hover:bg-white/5 transition-colors ${isUserMatch ? 'bg-braskick-verde/5' : ''}`}>
+                                <div className="flex items-center gap-3 flex-1">
+                                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: home.color }} />
+                                  <span className={`font-display text-lg truncate ${home.id === gameState.userTeamId ? 'text-braskick-verde' : ''}`}>{home.name}</span>
+                                </div>
+                                <div className="flex items-center gap-4 px-6">
+                                  {match.played ? (
+                                    <div className="font-display text-2xl italic flex items-center gap-3">
+                                      <span className={match.homeScore > match.awayScore ? 'text-white' : 'text-braskick-muted'}>{match.homeScore}</span>
+                                      <span className="text-braskick-noite3">-</span>
+                                      <span className={match.awayScore > match.homeScore ? 'text-white' : 'text-braskick-muted'}>{match.awayScore}</span>
+                                    </div>
+                                  ) : (
+                                    <div className="font-display text-sm text-braskick-noite3 uppercase tracking-widest">VS</div>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-3 flex-1 justify-end text-right">
+                                  <span className={`font-display text-lg truncate ${away.id === gameState.userTeamId ? 'text-braskick-verde' : ''}`}>{away.name}</span>
+                                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: away.color }} />
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
-                      <div className="divide-y divide-white/5">
-                        {weekMatches.map(match => {
-                          const home = gameState.teams.find(t => t.id === match.homeTeamId);
-                          const away = gameState.teams.find(t => t.id === match.awayTeamId);
-                          if (!home || !away) return null;
-                          
-                          const isUserMatch = home.id === gameState.userTeamId || away.id === gameState.userTeamId;
-                          return (
-                            <div key={match.id} className={`p-4 flex items-center justify-between hover:bg-white/5 transition-colors ${isUserMatch ? 'bg-braskick-verde/5' : ''}`}>
-                              <div className="flex items-center gap-3 flex-1">
-                                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: home.color }} />
-                                <span className={`font-display text-lg truncate ${home.id === gameState.userTeamId ? 'text-braskick-verde' : ''}`}>{home.name}</span>
-                              </div>
-                              <div className="flex items-center gap-4 px-6">
-                                {match.played ? (
-                                  <div className="font-display text-2xl italic flex items-center gap-3">
-                                    <span className={match.homeScore > match.awayScore ? 'text-white' : 'text-braskick-muted'}>{match.homeScore}</span>
-                                    <span className="text-braskick-noite3">-</span>
-                                    <span className={match.awayScore > match.homeScore ? 'text-white' : 'text-braskick-muted'}>{match.awayScore}</span>
-                                  </div>
-                                ) : (
-                                  <div className="font-display text-sm text-braskick-noite3 uppercase tracking-widest">VS</div>
-                                )}
-                              </div>
-                              <div className="flex items-center gap-3 flex-1 justify-end text-right">
-                                <span className={`font-display text-lg truncate ${away.id === gameState.userTeamId ? 'text-braskick-verde' : ''}`}>{away.name}</span>
-                                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: away.color }} />
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
                 </div>
               </motion.div>
             )}
 
             {activeTab === 'market' && (
-              <motion.div 
+              <motion.div
                 key="market"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -1749,15 +1743,15 @@ export default function App() {
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div className="md:col-span-3 relative">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-braskick-muted" />
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       placeholder="Buscar jogador ou time..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       className="w-full bg-braskick-noite3/30 border border-white/5 rounded-2xl py-4 pl-12 pr-4 font-display text-lg focus:outline-none focus:border-braskick-verde/50 transition-all"
                     />
                   </div>
-                  <select 
+                  <select
                     value={marketFilter}
                     onChange={(e) => setMarketFilter(e.target.value as any)}
                     className="bg-braskick-noite3/30 border border-white/5 rounded-2xl py-4 px-4 font-display text-lg focus:outline-none focus:border-braskick-verde/50 transition-all appearance-none"
@@ -1775,9 +1769,9 @@ export default function App() {
                     <div key={player.id} className="braskick-card group hover:border-braskick-verde/30 transition-all overflow-hidden p-0">
                       <div className="p-5 flex items-center justify-between border-b border-white/5 bg-white/5">
                         <div className="flex items-center gap-3">
-                          <div 
-                            className="w-10 h-10 rounded-xl flex items-center justify-center font-display text-2xl shadow-lg" 
-                            style={{ 
+                          <div
+                            className="w-10 h-10 rounded-xl flex items-center justify-center font-display text-2xl shadow-lg"
+                            style={{
                               backgroundColor: team.color,
                               color: (team.color.toLowerCase() === '#ffffff' || team.color.toLowerCase() === 'white') ? '#000000' : '#ffffff'
                             }}
@@ -1801,7 +1795,7 @@ export default function App() {
                           <div className="text-[10px] font-bold text-braskick-muted uppercase tracking-widest mb-1">Valor de Mercado</div>
                           <div className="font-display text-xl text-braskick-ouro">{formatMoney(player.value)}</div>
                         </div>
-                        <button 
+                        <button
                           onClick={() => {
                             if (userTeam && userTeam.budget >= player.value) {
                               const success = useGameStore.getState().buyPlayer(player, team.id, userTeam.id, player.value);
@@ -1811,11 +1805,10 @@ export default function App() {
                             }
                           }}
                           disabled={!userTeam || userTeam.budget < player.value}
-                          className={`px-6 py-3 rounded-xl font-display text-sm uppercase tracking-widest transition-all ${
-                            !userTeam || userTeam.budget < player.value
+                          className={`px-6 py-3 rounded-xl font-display text-sm uppercase tracking-widest transition-all ${!userTeam || userTeam.budget < player.value
                               ? 'bg-white/5 text-braskick-muted cursor-not-allowed'
                               : 'bg-braskick-verde text-white hover:bg-emerald-500 shadow-lg shadow-braskick-verde/20 active:scale-95'
-                          }`}
+                            }`}
                         >
                           Contratar
                         </button>
@@ -1827,7 +1820,7 @@ export default function App() {
             )}
 
             {activeTab === 'history' && (
-              <motion.div 
+              <motion.div
                 key="history"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -1836,13 +1829,13 @@ export default function App() {
                 <div className="flex items-center justify-between">
                   <h2 className="font-display text-3xl tracking-tighter uppercase italic">Histórico de Partidas</h2>
                   <div className="flex gap-2">
-                    <button 
+                    <button
                       onClick={() => setHistorySort('round')}
                       className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${historySort === 'round' ? 'bg-braskick-verde text-braskick-noite' : 'bg-white/5 text-braskick-muted hover:bg-white/10'}`}
                     >
                       Por Rodada
                     </button>
-                    <button 
+                    <button
                       onClick={() => setHistorySort('date')}
                       className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${historySort === 'date' ? 'bg-braskick-verde text-braskick-noite' : 'bg-white/5 text-braskick-muted hover:bg-white/10'}`}
                     >
@@ -1861,13 +1854,13 @@ export default function App() {
                     const home = gameState.teams.find(t => t.id === match.homeTeamId);
                     const away = gameState.teams.find(t => t.id === match.awayTeamId);
                     if (!home || !away) return null;
-                    
+
                     const isUserMatch = home.id === gameState.userTeamId || away.id === gameState.userTeamId;
-                    const userWon = (home.id === gameState.userTeamId && match.homeScore > match.awayScore) || 
-                                    (away.id === gameState.userTeamId && match.awayScore > match.homeScore);
-                    const userLost = (home.id === gameState.userTeamId && match.homeScore < match.awayScore) || 
-                                     (away.id === gameState.userTeamId && match.awayScore < match.homeScore);
-                    
+                    const userWon = (home.id === gameState.userTeamId && match.homeScore > match.awayScore) ||
+                      (away.id === gameState.userTeamId && match.awayScore > match.homeScore);
+                    const userLost = (home.id === gameState.userTeamId && match.homeScore < match.awayScore) ||
+                      (away.id === gameState.userTeamId && match.awayScore < match.homeScore);
+
                     return (
                       <div key={match.id} className={`braskick-card p-5 flex items-center justify-between relative overflow-hidden ${isUserMatch ? 'border-l-4 border-l-braskick-verde' : ''}`}>
                         {isUserMatch && (
@@ -1916,14 +1909,14 @@ export default function App() {
       {/* Match Result Modal */}
       <AnimatePresence>
         {selectedCalendarMatch && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-braskick-noite/95 backdrop-blur-md"
             onClick={() => setSelectedCalendarMatch(null)}
           >
-            <motion.div 
+            <motion.div
               initial={{ scale: 0.9, y: 30 }}
               animate={{ scale: 1, y: 0 }}
               className="bg-braskick-noite2 border border-braskick-noite3 rounded-[2.5rem] p-10 max-w-xl w-full shadow-2xl relative overflow-hidden"
@@ -1963,7 +1956,7 @@ export default function App() {
                 </div>
               )}
 
-              <button 
+              <button
                 onClick={() => setSelectedCalendarMatch(null)}
                 className="w-full py-4 bg-braskick-noite3 hover:bg-white/10 text-white font-display text-xl uppercase tracking-widest rounded-2xl transition-all"
               >
@@ -1974,19 +1967,19 @@ export default function App() {
         )}
 
         {showMatchResult && lastMatchResult && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-braskick-noite/95 backdrop-blur-md"
           >
-            <motion.div 
+            <motion.div
               initial={{ scale: 0.9, y: 30 }}
               animate={{ scale: 1, y: 0 }}
               className="bg-braskick-noite2 border border-braskick-noite3 rounded-[2.5rem] p-10 max-w-xl w-full shadow-[0_0_100px_-20px_rgba(0,0,0,0.5)] relative overflow-hidden"
             >
               <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-braskick-verde via-braskick-ouro to-braskick-azul" />
-              
+
               <div className="text-center mb-10">
                 <div className="font-display text-xl text-braskick-muted mb-6 tracking-[0.3em]">RESULTADO DA RODADA {gameState.currentWeek - 1}</div>
                 <div className="flex items-center justify-around py-8 bg-braskick-noite/50 rounded-[2rem] border border-white/5">
@@ -2026,7 +2019,7 @@ export default function App() {
                 )}
               </div>
 
-              <button 
+              <button
                 onClick={() => setShowMatchResult(false)}
                 className="w-full py-5 bg-braskick-verde hover:bg-emerald-500 text-white font-display text-2xl uppercase tracking-widest rounded-2xl shadow-xl shadow-braskick-verde/20 transition-all active:scale-95"
               >
@@ -2037,19 +2030,19 @@ export default function App() {
         )}
 
         {showResetConfirm && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-braskick-noite/95 backdrop-blur-md"
           >
-            <motion.div 
+            <motion.div
               initial={{ scale: 0.9, y: 30 }}
               animate={{ scale: 1, y: 0 }}
               className="bg-braskick-noite2 border border-red-500/20 rounded-[2.5rem] p-10 max-w-md w-full shadow-[0_0_100px_-20px_rgba(239,68,68,0.2)] relative overflow-hidden text-center"
             >
               <div className="absolute top-0 left-0 w-full h-2 bg-red-500" />
-              
+
               <div className="mb-8 inline-flex items-center justify-center w-20 h-20 bg-red-500/10 border border-red-500/20 rounded-3xl">
                 <AlertTriangle className="w-10 h-10 text-red-500" />
               </div>
@@ -2060,13 +2053,13 @@ export default function App() {
               </p>
 
               <div className="grid grid-cols-2 gap-4">
-                <button 
+                <button
                   onClick={() => setShowResetConfirm(false)}
                   className="py-4 bg-white/5 hover:bg-white/10 text-white font-display text-xl uppercase tracking-widest rounded-2xl transition-all"
                 >
                   CANCELAR
                 </button>
-                <button 
+                <button
                   onClick={async () => {
                     if (user) {
                       try {
@@ -2096,13 +2089,12 @@ export default function App() {
 
 function SidebarItem({ icon, label, active, onClick }: { icon: React.ReactNode, label: string, active: boolean, onClick: () => void }) {
   return (
-    <button 
+    <button
       onClick={onClick}
-      className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl transition-all group relative overflow-hidden ${
-        active 
-          ? 'bg-braskick-verde/10 text-braskick-verde border border-braskick-verde/20' 
+      className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl transition-all group relative overflow-hidden ${active
+          ? 'bg-braskick-verde/10 text-braskick-verde border border-braskick-verde/20'
           : 'text-braskick-muted hover:bg-white/5 hover:text-braskick-texto'
-      }`}
+        }`}
     >
       {active && <div className="absolute left-0 top-0 bottom-0 w-1 bg-braskick-verde" />}
       <span className={`${active ? 'text-braskick-verde' : 'text-braskick-muted group-hover:text-braskick-texto'}`}>
