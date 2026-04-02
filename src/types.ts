@@ -4,6 +4,8 @@ export interface Competition {
   id: string;
   name: string;
   type: CompetitionType;
+  format?: 'LEAGUE' | 'GROUPS' | 'KNOCKOUT' | 'GROUPS_KNOCKOUT';
+  rules?: string;
   region: 'BRAZIL' | 'EUROPE' | 'SOUTH_AMERICA' | 'WORLD';
   tier?: number;
   logo?: string;

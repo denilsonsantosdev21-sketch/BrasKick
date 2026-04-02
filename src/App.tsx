@@ -1151,7 +1151,7 @@ export default function App() {
                     <div className="absolute top-0 right-0 p-4 opacity-5">
                       <Calendar className="w-32 h-32" />
                     </div>
-                    <div className="flex items-center justify-between mb-8">
+                    <div className="flex items-center justify-between mb-8 relative z-10 w-full flex-wrap gap-4">
                       <h3 className="text-sm font-bold uppercase tracking-widest text-braskick-muted flex items-center gap-2">
                         <Calendar className="w-5 h-5" />
                         PRÓXIMO CONFRONTO — RODADA {gameState.currentWeek}
@@ -1259,7 +1259,8 @@ export default function App() {
                           const diffTime = date.getTime() - startDate.getTime();
                           const weekOfGame = Math.floor(diffTime / (7 * 24 * 60 * 60 * 1000)) + 1;
 
-                          const match = gameState.matches.find(m => m.week === weekOfGame && (m.homeTeamId === gameState.userTeamId || m.awayTeamId === gameState.userTeamId));
+                          // Restringir a exibição da partida apenas para Domingo (0)
+                          const match = date.getDay() === 0 ? gameState.matches.find(m => m.week === weekOfGame && (m.homeTeamId === gameState.userTeamId || m.awayTeamId === gameState.userTeamId)) : undefined;
                           const isToday = day === currentDate.getDate();
                           const opponentId = match?.homeTeamId === gameState.userTeamId ? match?.awayTeamId : match?.homeTeamId;
                           const opponent = gameState.teams.find(t => t.id === opponentId);
@@ -1383,9 +1384,9 @@ export default function App() {
                           </td>
                           <td className="p-5 text-center">
                             <span className={`font-display text-sm px-3 py-1 rounded-full ${player.position === 'GK' ? 'bg-braskick-ouro/10 text-braskick-ouro' :
-                                player.position === 'DF' ? 'bg-braskick-verde/10 text-braskick-verde' :
-                                  player.position === 'MF' ? 'bg-braskick-azul/10 text-braskick-azul' :
-                                    'bg-red-500/10 text-red-500'
+                              player.position === 'DF' ? 'bg-braskick-verde/10 text-braskick-verde' :
+                                player.position === 'MF' ? 'bg-braskick-azul/10 text-braskick-azul' :
+                                  'bg-red-500/10 text-red-500'
                               }`}>
                               {player.position}
                             </span>
@@ -1592,8 +1593,8 @@ export default function App() {
                         key={comp.id}
                         onClick={() => setActiveCompetitionId(comp.id)}
                         className={`px-4 py-2 rounded-xl font-display text-[10px] uppercase tracking-widest transition-all border ${activeCompetitionId === comp.id
-                            ? 'bg-braskick-verde text-braskick-noite border-braskick-verde shadow-lg shadow-braskick-verde/20'
-                            : 'bg-braskick-noite3/30 text-braskick-muted border-white/5 hover:bg-white/5'
+                          ? 'bg-braskick-verde text-braskick-noite border-braskick-verde shadow-lg shadow-braskick-verde/20'
+                          : 'bg-braskick-noite3/30 text-braskick-muted border-white/5 hover:bg-white/5'
                           }`}
                       >
                         {comp.name}
@@ -1645,7 +1646,7 @@ export default function App() {
                         const weekMatches = (gameState.matches || []).filter(m => m.week === weekOfGame && m.competitionId === activeCompetitionId);
                         const userMatch = weekMatches.find(m => m.homeTeamId === gameState.userTeamId || m.awayTeamId === gameState.userTeamId);
                         const isToday = day === currentDate.getDate();
-                        const match = userMatch || weekMatches[0];
+                        const match = date.getDay() === 0 ? (userMatch || weekMatches[0]) : undefined;
 
                         days.push(
                           <div
@@ -1806,8 +1807,8 @@ export default function App() {
                           }}
                           disabled={!userTeam || userTeam.budget < player.value}
                           className={`px-6 py-3 rounded-xl font-display text-sm uppercase tracking-widest transition-all ${!userTeam || userTeam.budget < player.value
-                              ? 'bg-white/5 text-braskick-muted cursor-not-allowed'
-                              : 'bg-braskick-verde text-white hover:bg-emerald-500 shadow-lg shadow-braskick-verde/20 active:scale-95'
+                            ? 'bg-white/5 text-braskick-muted cursor-not-allowed'
+                            : 'bg-braskick-verde text-white hover:bg-emerald-500 shadow-lg shadow-braskick-verde/20 active:scale-95'
                             }`}
                         >
                           Contratar
@@ -2092,8 +2093,8 @@ function SidebarItem({ icon, label, active, onClick }: { icon: React.ReactNode, 
     <button
       onClick={onClick}
       className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl transition-all group relative overflow-hidden ${active
-          ? 'bg-braskick-verde/10 text-braskick-verde border border-braskick-verde/20'
-          : 'text-braskick-muted hover:bg-white/5 hover:text-braskick-texto'
+        ? 'bg-braskick-verde/10 text-braskick-verde border border-braskick-verde/20'
+        : 'text-braskick-muted hover:bg-white/5 hover:text-braskick-texto'
         }`}
     >
       {active && <div className="absolute left-0 top-0 bottom-0 w-1 bg-braskick-verde" />}

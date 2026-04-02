@@ -526,35 +526,55 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                       </button>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                      {players.map(player => (
-                        <div key={player.id} className="braskick-card group">
-                          <div className="flex items-center gap-4">
-                            <div className="w-16 h-16 bg-white/5 rounded-2xl overflow-hidden flex-shrink-0">
-                              {player.photo ? (
-                                <img src={player.photo} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center">
-                                  <Users className="w-8 h-8 text-braskick-muted" />
-                                </div>
-                              )}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="font-display text-lg truncate leading-none mb-1">{player.name}</div>
-                              <div className="flex items-center gap-2">
-                                <span className="text-[10px] font-bold text-braskick-verde uppercase tracking-widest">{player.position}</span>
-                                <span className="text-[10px] font-bold text-braskick-muted uppercase tracking-widest">OVR {player.overall}</span>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                      {players.map(player => {
+                        const ptPos = player.position === 'GK' ? 'GOL' : player.position === 'DF' ? 'ZAG/LAT' : player.position === 'MF' ? 'MEI/VOL' : 'ATA/PON';
+                        const posColor = player.position === 'GK' ? 'text-braskick-ouro' : player.position === 'DF' ? 'text-braskick-verde' : player.position === 'MF' ? 'text-braskick-azul' : 'text-red-500';
+
+                        return (
+                        <div key={player.id} className="braskick-card group relative overflow-hidden flex flex-col p-0 border border-white/10 hover:border-braskick-verde transition-all">
+                          <div className="flex-1 p-5">
+                            <div className="flex items-start justify-between mb-4">
+                              <div className="w-16 h-16 bg-braskick-noite3 rounded-2xl overflow-hidden flex-shrink-0 border border-white/5 relative z-10 shadow-lg">
+                                {player.photo ? (
+                                  <img src={player.photo} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center">
+                                    <Users className="w-8 h-8 text-braskick-muted opacity-50" />
+                                  </div>
+                                )}
                               </div>
+                              <div className="text-right">
+                                <span className={`font-display text-2xl ${posColor}`}>{player.overall}</span>
+                                <div className={`text-[10px] font-bold uppercase tracking-widest ${posColor}`}>{ptPos}</div>
+                              </div>
+                            </div>
+                            
+                            <div className="space-y-1 relative z-10">
+                              <div className="font-display text-xl truncate leading-none">{player.name}</div>
+                              <div className="flex items-center justify-between text-[10px] font-bold text-braskick-muted uppercase tracking-widest">
+                                <span>{player.nationality || 'Desconhecido'}</span>
+                                <span>{player.age} ANOS</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="bg-white/5 px-5 py-4 flex items-center justify-between border-t border-white/10 relative z-10">
+                            <div className="text-braskick-verde font-display text-lg">
+                              R$ {(player.value / 1000000).toFixed(1)}M
                             </div>
                             <button 
                               onClick={() => setEditingItem(player)}
-                              className="p-2 hover:bg-white/5 rounded-lg transition-colors text-braskick-muted hover:text-white"
+                              className="p-2 bg-braskick-noite3 hover:bg-braskick-verde rounded-lg transition-colors text-white"
                             >
                               <Edit2 className="w-4 h-4" />
                             </button>
                           </div>
+                          
+                          {/* Background Effect */}
+                          <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-white/5 rounded-full blur-3xl opacity-50 pointer-events-none group-hover:bg-braskick-verde/20 transition-all" />
                         </div>
-                      ))}
+                      )})}
                     </div>
                   </>
                 )}
@@ -572,13 +592,13 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-braskick-noite2 border border-white/10 rounded-[2rem] p-8 max-w-2xl w-full shadow-2xl"
+              className="bg-braskick-noite2 border border-white/10 rounded-[2rem] p-8 max-w-2xl w-full shadow-2xl max-h-[90vh] overflow-y-auto custom-scrollbar"
             >
-              <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center justify-between mb-8 sticky top-0 bg-braskick-noite2 z-20 pb-4 border-b border-white/5">
                 <h3 className="font-display text-2xl uppercase tracking-widest">
-                  {editingItem.id ? 'Editar' : 'Adicionar'} {activeTab === 'competitions' ? 'Liga' : activeTab === 'teams' ? 'Time' : 'Jogador'}
+                  {editingItem.id ? 'Editar' : 'Adicionar'} {activeTab === 'competitions' ? 'Liga' : activeTab === 'teams' ? 'Time' : activeTab === 'countries' ? 'País' : 'Jogador'}
                 </h3>
-                <button onClick={() => setEditingItem(null)}><X className="w-6 h-6" /></button>
+                <button onClick={() => setEditingItem(null)} className="p-2 hover:bg-white/10 rounded-full transition-colors"><X className="w-6 h-6" /></button>
               </div>
 
               <form onSubmit={activeTab === 'competitions' ? handleSaveCompetition : activeTab === 'teams' ? handleSaveTeam : handleSavePlayer} className="space-y-6">
@@ -596,27 +616,51 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
 
                   {activeTab === 'competitions' && (
                     <>
-                      <div>
-                        <label className="block text-[10px] font-bold text-braskick-muted uppercase tracking-widest mb-2">Região</label>
-                        <select 
-                          value={editingItem.region}
-                          onChange={(e) => setEditingItem({ ...editingItem, region: e.target.value })}
-                          className="w-full bg-braskick-noite border border-white/10 rounded-xl p-3 text-white outline-none focus:border-braskick-verde"
-                        >
-                          <option value="BRAZIL">Brasil</option>
-                          <option value="EUROPE">Europa</option>
-                          <option value="SOUTH_AMERICA">América do Sul</option>
-                          <option value="WORLD">Mundo</option>
-                        </select>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-[10px] font-bold text-braskick-muted uppercase tracking-widest mb-2">Região</label>
+                          <select 
+                            value={editingItem.region}
+                            onChange={(e) => setEditingItem({ ...editingItem, region: e.target.value })}
+                            className="w-full bg-braskick-noite border border-white/10 rounded-xl p-3 text-white outline-none focus:border-braskick-verde"
+                          >
+                            <option value="BRAZIL">Brasil</option>
+                            <option value="EUROPE">Europa</option>
+                            <option value="SOUTH_AMERICA">América do Sul</option>
+                            <option value="WORLD">Mundo</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-braskick-muted uppercase tracking-widest mb-2">Formato</label>
+                          <select 
+                            value={editingItem.format || 'LEAGUE'}
+                            onChange={(e) => setEditingItem({ ...editingItem, format: e.target.value })}
+                            className="w-full bg-braskick-noite border border-white/10 rounded-xl p-3 text-white outline-none focus:border-braskick-verde"
+                          >
+                            <option value="LEAGUE">Pontos Corridos</option>
+                            <option value="GROUPS">Grupos</option>
+                            <option value="KNOCKOUT">Mata-Mata</option>
+                            <option value="GROUPS_KNOCKOUT">Grupos + Mata-Mata</option>
+                          </select>
+                        </div>
                       </div>
                       <div>
-                        <label className="block text-[10px] font-bold text-braskick-muted uppercase tracking-widest mb-2">País (Nome)</label>
+                        <label className="block text-[10px] font-bold text-braskick-muted uppercase tracking-widest mb-2">País (Opcional)</label>
                         <input 
                           type="text" 
                           value={editingItem.countryName || ''}
                           onChange={(e) => setEditingItem({ ...editingItem, countryName: e.target.value })}
                           className="w-full bg-braskick-noite border border-white/10 rounded-xl p-3 text-white outline-none focus:border-braskick-verde"
                           placeholder="Ex: Brasil"
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="block text-[10px] font-bold text-braskick-muted uppercase tracking-widest mb-2">Regras / Oberservações</label>
+                        <textarea 
+                          value={editingItem.rules || ''}
+                          onChange={(e) => setEditingItem({ ...editingItem, rules: e.target.value })}
+                          className="w-full bg-braskick-noite border border-white/10 rounded-xl p-3 text-white outline-none focus:border-braskick-verde min-h-[80px]"
+                          placeholder="Descreva aqui se o campeonato possui alguma regra especial..."
                         />
                       </div>
                       <div className="col-span-2">
@@ -749,12 +793,19 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                   )}
                 </div>
 
-                <div className="pt-6">
+                <div className="pt-6 grid grid-cols-2 gap-4">
+                  <button 
+                    type="button"
+                    onClick={() => setEditingItem(null)}
+                    className="w-full py-4 text-white hover:text-red-400 font-display text-lg uppercase tracking-widest rounded-xl transition-all border border-transparent hover:border-red-500/30"
+                  >
+                    CANCELAR
+                  </button>
                   <button 
                     type="submit"
                     className="w-full braskick-button-primary flex items-center justify-center gap-2 py-4"
                   >
-                    <Save className="w-5 h-5" /> SALVAR ALTERAÇÕES
+                    <Save className="w-5 h-5" /> SALVAR
                   </button>
                 </div>
               </form>
