@@ -64,12 +64,16 @@ export default function App() {
 
   const [activeTab, setActiveTab] = useState<'dashboard' | 'squad' | 'league' | 'market' | 'history' | 'fixtures' | 'national_team' | 'account'>('dashboard');
   const [activeCompetitionId, setActiveCompetitionId] = useState<string>('f9e8d7c6-b5a4-4321-8765-432109876543');
+  const [historyFilter, setHistoryFilter] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [marketFilter, setMarketFilter] = useState<'all' | 'GK' | 'DF' | 'MF' | 'FW'>('all');
   const [historySort, setHistorySort] = useState<'round' | 'date'>('round');
 
   const sortedHistory = useMemo(() => {
-    const history = [...(gameState?.history || [])];
+    let history = [...(gameState?.history || [])];
+    if (historyFilter !== 'all') {
+      history = history.filter(m => m.competitionId === historyFilter);
+    }
     if (historySort === 'round') {
       return history.sort((a, b) => b.week - a.week);
     } else {
@@ -79,7 +83,7 @@ export default function App() {
         return dateB - dateA;
       });
     }
-  }, [gameState?.history, historySort]);
+  }, [gameState?.history, historySort, historyFilter]);
   const [isSimulating, setIsSimulating] = useState(false);
   const [lastMatchResult, setLastMatchResult] = useState<Match | null>(null);
   const [showMatchResult, setShowMatchResult] = useState(false);
@@ -93,6 +97,7 @@ export default function App() {
   const [accountMessage, setAccountMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   const [showMatchChoice, setShowMatchChoice] = useState(false);
   const [isWatchingMatch, setIsWatchingMatch] = useState(false);
+  const [showSubstitutions, setShowSubstitutions] = useState(false);
   const [matchSimulationData, setMatchSimulationData] = useState<{
     match: Match;
     homeTeam: Team;
@@ -100,12 +105,25 @@ export default function App() {
     time: number;
     homeScore: number;
     awayScore: number;
+    isPaused: boolean;
     events: MatchEvent[];
+    substitutions: { out: string, in: string, minute: number, teamId: string }[];
     tactics: {
       mentality: 'defensive' | 'balanced' | 'offensive';
       focus: 'center' | 'sides';
       intensity: 'light' | 'heavy';
-    }
+    };
+    playerPositions: {
+      id: string;
+      name: string;
+      teamId: string;
+      x: number;
+      y: number;
+      baseX: number;
+      baseY: number;
+      color: string;
+    }[];
+    ball: { x: number; y: number };
   } | null>(null);
 
   const initialSetupTeams = useMemo(() => {
@@ -520,38 +538,46 @@ export default function App() {
     return allStandings[userTeam.leagueId] || [];
   }, [allStandings, userTeam, gameState]);
 
-  const [marketPlayers, setMarketPlayers] = useState<{ player: Player, team: Team }[]>([]);
+  const marketPlayers = useMemo(() => {
+    if (!gameState || !gameState.teams) return [];
+    try {
+      const allPlayers: { player: Player, team: Team }[] = [];
+      gameState.teams.forEach(team => {
+        if (team && team.id !== gameState.userTeamId && team.players) {
+          team.players.forEach(player => {
+            if (player) {
+              allPlayers.push({ player, team });
+            }
+          });
+        }
+      });
 
-  useEffect(() => {
-    if (!gameState || !gameState.teams) {
-      setMarketPlayers([]);
-      return;
+      return allPlayers.filter(item => {
+        if (!item || !item.player || !item.team) return false;
+        const playerName = item.player.name || '';
+        const teamName = item.team.name || '';
+        const matchesSearch = playerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          teamName.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesFilter = marketFilter === 'all' || item.player.position === marketFilter;
+        return matchesSearch && matchesFilter;
+      }).sort((a, b) => (b.player?.overall || 0) - (a.player?.overall || 0));
+    } catch (err) {
+      console.error("Erro ao processar mercado:", err);
+      return [];
     }
-    const allPlayers: { player: Player, team: Team }[] = [];
-    gameState.teams.forEach(team => {
-      if (team && team.id !== gameState.userTeamId && team.players) {
-        team.players.forEach(player => {
-          if (player) {
-            allPlayers.push({ player, team });
-          }
-        });
-      }
-    });
-
-    const filtered = allPlayers.filter(item => {
-      const playerName = item.player?.name || '';
-      const teamName = item.team?.name || '';
-      const matchesSearch = playerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        teamName.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesFilter = marketFilter === 'all' || item.player?.position === marketFilter;
-      return matchesSearch && matchesFilter;
-    }).sort((a, b) => (b.player?.overall || 0) - (a.player?.overall || 0));
-    
-    setMarketPlayers(filtered);
   }, [gameState, searchTerm, marketFilter]);
 
   const formatMoney = (value: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(value);
+  };
+
+  const getAbbreviation = (name: string) => {
+    if (!name) return '???';
+    const words = name.split(' ');
+    if (words.length >= 2) {
+      return (words[0][0] + words[1][0] + (words[1][1] || words[0][1])).toUpperCase();
+    }
+    return name.substring(0, 3).toUpperCase();
   };
 
   const handleTrainPlayer = (type: 'ATTACK' | 'PASS' | 'PHYSICAL') => {
@@ -687,6 +713,39 @@ export default function App() {
     const away = gameState.teams.find(t => t.id === userMatch.awayTeamId);
     if (!home || !away) return;
 
+    // Gerar posições iniciais baseadas em 4-4-2 simplificado
+    const generatePositions = (team: Team, isHome: boolean) => {
+      const positions = [];
+      const players = team.players.slice(0, 11);
+      const side = isHome ? 1 : -1;
+      const startX = isHome ? 25 : 75;
+
+      players.forEach((p, i) => {
+        let bx, by;
+        if (i === 0) { bx = isHome ? 5 : 95; by = 50; } // GK
+        else if (i < 5) { bx = isHome ? 20 : 80; by = 20 * i; } // DF
+        else if (i < 9) { bx = 50 - (side * 10); by = 20 * (i - 4); } // MF
+        else { bx = isHome ? 40 : 60; by = 33 * (i - 8); } // FW
+
+        positions.push({
+          id: p.id,
+          name: p.name,
+          teamId: team.id,
+          x: bx,
+          y: by,
+          baseX: bx,
+          baseY: by,
+          color: team.color
+        });
+      });
+      return positions;
+    };
+
+    const playerPositions = [
+      ...generatePositions(home, true),
+      ...generatePositions(away, false)
+    ];
+
     setMatchSimulationData({
       match: { ...userMatch, events: [], homeScore: 0, awayScore: 0, played: true },
       homeTeam: home,
@@ -694,28 +753,30 @@ export default function App() {
       time: 0,
       homeScore: 0,
       awayScore: 0,
+      isPaused: false,
       events: [],
+      substitutions: [],
       tactics: {
         mentality: 'balanced',
         focus: 'center',
         intensity: 'light'
-      }
+      },
+      playerPositions,
+      ball: { x: 50, y: 50 }
     });
     setIsWatchingMatch(true);
     setShowMatchChoice(false);
   };
 
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    let interval: any;
     if (isWatchingMatch && matchSimulationData) {
       interval = setInterval(() => {
         setMatchSimulationData(prev => {
-          if (!prev || prev.time >= 90) {
+          if (!prev || prev.isPaused) return prev;
+          if (prev.time >= 90) {
             clearInterval(interval);
-            if (prev && prev.time >= 90) {
-              // Finalizar partida
-              setTimeout(() => simulateNextWeek(true), 1000);
-            }
+            setTimeout(() => simulateNextWeek(true), 2000);
             return prev;
           }
 
@@ -724,12 +785,53 @@ export default function App() {
           let newAwayScore = prev.awayScore;
           const newEvents = [...prev.events];
 
-          // Lógica de gol simplificada baseada em força e tática
+          // Movimentação dos jogadores (mais realista)
+          const newPlayerPositions = prev.playerPositions.map(p => {
+            const targetX = prev.ball.x;
+            const targetY = prev.ball.y;
+            
+            // Fator de atração da bola (mais refinado por posição)
+            const isNearBall = Math.sqrt(Math.pow(targetX - p.x, 2) + Math.pow(targetY - p.y, 2)) < 15;
+            const attraction = isNearBall ? 0.08 : 0.03;
+            const returnToBase = isNearBall ? 0.01 : 0.04;
+            
+            let dx = (targetX - p.x) * attraction + (p.baseX - p.x) * returnToBase;
+            let dy = (targetY - p.y) * attraction + (p.baseY - p.y) * returnToBase;
+            
+            // Adicionar um pouco de aleatoriedade
+            dx += (Math.random() - 0.5) * 1.5;
+            dy += (Math.random() - 0.5) * 1.5;
+
+            return {
+              ...p,
+              x: Math.max(5, Math.min(95, p.x + dx)),
+              y: Math.max(5, Math.min(95, p.y + dy))
+            };
+          });
+
+          // Movimentação da bola (mais dinâmica)
           const homeStrength = prev.homeTeam.overall + (prev.tactics.mentality === 'offensive' ? 5 : prev.tactics.mentality === 'defensive' ? -5 : 0);
           const awayStrength = prev.awayTeam.overall;
+          const totalStrength = homeStrength + awayStrength;
+          
+          const homePossession = homeStrength / totalStrength;
+          const attackingTeam = Math.random() < homePossession ? 'home' : 'away';
+          
+          // A bola se move em direção ao gol adversário
+          const targetBallX = attackingTeam === 'home' ? 90 : 10;
+          const targetBallY = 50 + (Math.random() - 0.5) * 60;
+          
+          const ballSpeed = 0.15;
+          const newBall = {
+            x: Math.max(5, Math.min(95, prev.ball.x + (targetBallX - prev.ball.x) * ballSpeed + (Math.random() - 0.5) * 5)),
+            y: Math.max(5, Math.min(95, prev.ball.y + (targetBallY - prev.ball.y) * ballSpeed + (Math.random() - 0.5) * 5))
+          };
 
+          // Lógica de gol simplificada baseada em força e tática
           const chance = Math.random() * 1000;
-          if (chance < homeStrength / 20) {
+          
+          // Gols
+          if (chance < homeStrength / 30) {
             newHomeScore++;
             const scorer = prev.homeTeam.players[Math.floor(Math.random() * prev.homeTeam.players.length)];
             newEvents.push({
@@ -738,7 +840,7 @@ export default function App() {
               playerName: scorer.name,
               teamId: prev.homeTeam.id
             });
-          } else if (chance > 1000 - (awayStrength / 20)) {
+          } else if (chance > 1000 - (awayStrength / 30)) {
             newAwayScore++;
             const scorer = prev.awayTeam.players[Math.floor(Math.random() * prev.awayTeam.players.length)];
             newEvents.push({
@@ -749,12 +851,27 @@ export default function App() {
             });
           }
 
+          // Cartões (Simulados)
+          if (Math.random() < 0.015) {
+            const team = Math.random() > 0.5 ? prev.homeTeam : prev.awayTeam;
+            const player = team.players[Math.floor(Math.random() * team.players.length)];
+            const isRed = Math.random() < 0.05;
+            newEvents.push({
+              minute: newTime,
+              type: isRed ? 'red_card' : 'yellow_card',
+              playerName: player.name,
+              teamId: team.id
+            });
+          }
+
           return {
             ...prev,
             time: newTime,
             homeScore: newHomeScore,
             awayScore: newAwayScore,
             events: newEvents,
+            playerPositions: newPlayerPositions,
+            ball: newBall,
             match: {
               ...prev.match,
               homeScore: newHomeScore,
@@ -766,7 +883,7 @@ export default function App() {
       }, 1333); // 120 segundos para 90 minutos -> ~1.33s por minuto
     }
     return () => clearInterval(interval);
-  }, [isWatchingMatch]);
+  }, [isWatchingMatch, matchSimulationData?.isPaused]);
 
   // Simula a próxima rodada do campeonato
   const simulateNextWeek = async (forceQuickSim = false) => {
@@ -1580,15 +1697,7 @@ export default function App() {
                             >
                               <span className={`text-[10px] font-bold ${isToday ? 'text-braskick-ouro' : 'text-braskick-muted'}`}>{day}</span>
                               {match && opponent && (
-                                <div
-                                  className="w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold shadow-xl transition-transform group-hover:scale-110 overflow-hidden"
-                                  style={{
-                                    backgroundColor: opponent.color,
-                                    color: (opponent.color.toLowerCase() === '#ffffff' || opponent.color.toLowerCase() === 'white') ? '#000000' : '#ffffff'
-                                  }}
-                                >
-                                  {opponent.logo ? <img src={opponent.logo} alt="" className="w-full h-full object-contain" /> : opponent.name.substring(0, 1)}
-                                </div>
+                                <TeamDisplay team={opponent} size="small" />
                               )}
                               {match && (
                                 <div className="absolute -top-1 -right-1 w-4 h-4 bg-braskick-ouro rounded-full flex items-center justify-center text-[8px] font-bold text-braskick-noite shadow-lg">
@@ -1929,6 +2038,25 @@ export default function App() {
                     <h2 className="font-display text-4xl tracking-tighter uppercase italic bg-gradient-to-r from-white to-braskick-muted bg-clip-text text-transparent">Calendário da Temporada</h2>
                     <p className="text-braskick-muted text-xs font-bold uppercase tracking-widest mt-1">Acompanhe todas as rodadas e resultados</p>
                   </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setShowTips(true)}
+                      className="p-3 bg-braskick-ouro/10 hover:bg-braskick-ouro/20 text-braskick-ouro rounded-xl border border-braskick-ouro/20 transition-all flex items-center gap-2 font-display text-[10px] uppercase tracking-widest"
+                    >
+                      <Lightbulb className="w-4 h-4" />
+                      Dicas de Evolução
+                    </button>
+                    <div className="relative">
+                      <button className="p-3 bg-white/5 hover:bg-white/10 text-white rounded-xl border border-white/10 transition-all">
+                        <Zap className="w-5 h-5" />
+                      </button>
+                      {notifications.length > 0 && (
+                        <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full border-2 border-braskick-noite flex items-center justify-center text-[8px] font-bold text-white">
+                          {notifications.length}
+                        </span>
+                      )}
+                    </div>
+                  </div>
                   <div className="flex flex-wrap gap-2">
                     {COMPETITIONS.map(comp => (
                       <button
@@ -2037,7 +2165,7 @@ export default function App() {
                             return (
                               <div key={match.id} className={`p-4 flex items-center justify-between hover:bg-white/5 transition-colors ${isUserMatch ? 'bg-braskick-verde/5' : ''}`}>
                                 <div className="flex items-center gap-3 flex-1">
-                                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: home.color }} />
+                                  <TeamDisplay team={home} size="small" />
                                   <span className={`font-display text-lg truncate ${home.id === gameState.userTeamId ? 'text-braskick-verde' : ''}`}>{home.name}</span>
                                 </div>
                                 <div className="flex items-center gap-4 px-6">
@@ -2053,7 +2181,7 @@ export default function App() {
                                 </div>
                                 <div className="flex items-center gap-3 flex-1 justify-end text-right">
                                   <span className={`font-display text-lg truncate ${away.id === gameState.userTeamId ? 'text-braskick-verde' : ''}`}>{away.name}</span>
-                                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: away.color }} />
+                                  <TeamDisplay team={away} size="small" />
                                 </div>
                               </div>
                             );
@@ -2108,7 +2236,7 @@ export default function App() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {marketPlayers.map(({ player, team }) => (
+                  {marketPlayers.slice(0, 60).map(({ player, team }) => (
                     <div key={player.id} className="braskick-card group hover:border-braskick-verde/30 transition-all overflow-hidden p-0">
                       <div className="p-5 flex items-center justify-between border-b border-white/5 bg-white/5">
                         <div className="flex items-center gap-3">
@@ -2169,9 +2297,19 @@ export default function App() {
                 animate={{ opacity: 1, x: 0 }}
                 className="space-y-6"
               >
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <h2 className="font-display text-3xl tracking-tighter uppercase italic">Histórico de Partidas</h2>
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
+                    <select
+                      value={historyFilter}
+                      onChange={(e) => setHistoryFilter(e.target.value)}
+                      className="bg-braskick-noite3/30 border border-white/5 rounded-xl py-2 px-4 font-display text-xs uppercase tracking-widest focus:outline-none focus:border-braskick-verde/50 transition-all appearance-none text-braskick-muted"
+                    >
+                      <option value="all">Todas as Ligas</option>
+                      {gameState.competitions.map(comp => (
+                        <option key={comp.id} value={comp.id}>{comp.name}</option>
+                      ))}
+                    </select>
                     <button
                       onClick={() => setHistorySort('round')}
                       className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${historySort === 'round' ? 'bg-braskick-verde text-braskick-noite' : 'bg-white/5 text-braskick-muted hover:bg-white/10'}`}
@@ -2193,55 +2331,50 @@ export default function App() {
                     <p className="text-braskick-muted font-display text-2xl uppercase tracking-widest">NENHUMA PARTIDA DISPUTADA</p>
                   </div>
                 ) : (
-                  (sortedHistory || []).map(match => {
-                    const home = gameState.teams.find(t => t.id === match.homeTeamId);
-                    const away = gameState.teams.find(t => t.id === match.awayTeamId);
-                    if (!home || !away) return null;
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {sortedHistory.map(match => {
+                      const home = gameState.teams.find(t => t.id === match.homeTeamId);
+                      const away = gameState.teams.find(t => t.id === match.awayTeamId);
+                      if (!home || !away) return null;
 
-                    const isUserMatch = home.id === gameState.userTeamId || away.id === gameState.userTeamId;
-                    const userWon = (home.id === gameState.userTeamId && match.homeScore > match.awayScore) ||
-                      (away.id === gameState.userTeamId && match.awayScore > match.homeScore);
-                    const userLost = (home.id === gameState.userTeamId && match.homeScore < match.awayScore) ||
-                      (away.id === gameState.userTeamId && match.awayScore < match.homeScore);
+                      const isWin = (home.id === gameState.userTeamId && match.homeScore > match.awayScore) ||
+                        (away.id === gameState.userTeamId && match.awayScore > match.homeScore);
+                      const isLoss = (home.id === gameState.userTeamId && match.homeScore < match.awayScore) ||
+                        (away.id === gameState.userTeamId && match.awayScore < match.homeScore);
+                      const isDraw = match.homeScore === match.awayScore;
 
-                    return (
-                      <div key={match.id} className={`braskick-card p-5 flex items-center justify-between relative overflow-hidden ${isUserMatch ? 'border-l-4 border-l-braskick-verde' : ''}`}>
-                        {isUserMatch && (
-                          <div className={`absolute top-0 right-0 px-3 py-1 font-display text-xs uppercase tracking-widest ${userWon ? 'bg-braskick-verde text-white' : userLost ? 'bg-red-600 text-white' : 'bg-braskick-ouro text-braskick-noite'}`}>
-                            {userWon ? 'VITÓRIA' : userLost ? 'DERROTA' : 'EMPATE'}
+                      return (
+                        <div key={match.id} className={`braskick-card overflow-hidden p-0 border-l-4 ${isWin ? 'border-l-braskick-verde' : isLoss ? 'border-l-red-500' : 'border-l-braskick-ouro'}`}>
+                          <div className="p-4 bg-white/5 flex items-center justify-between border-b border-white/5">
+                            <div className="flex flex-col">
+                              <span className="font-display text-lg tracking-wider">RODADA {match.week}</span>
+                              <span className="text-[8px] font-bold text-braskick-muted uppercase tracking-widest">{COMPETITIONS.find(c => c.id === match.competitionId)?.name}</span>
+                            </div>
+                            <div className={`px-3 py-1 rounded-lg font-display text-xs uppercase tracking-widest ${isWin ? 'bg-braskick-verde/10 text-braskick-verde' : isLoss ? 'bg-red-500/10 text-red-500' : 'bg-braskick-ouro/10 text-braskick-ouro'}`}>
+                              {isWin ? 'VITÓRIA' : isLoss ? 'DERROTA' : 'EMPATE'}
+                            </div>
                           </div>
-                        )}
-                        <div className="flex flex-col gap-1 w-40">
-                          <span className="font-display text-lg text-braskick-muted uppercase">RODADA {match.week}</span>
-                          {match.date && (
-                            <span className="text-[10px] font-bold text-braskick-muted uppercase tracking-widest">
-                              {new Date(match.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex flex-col gap-1 w-32">
-                          <span className="text-[10px] font-bold text-braskick-azul uppercase tracking-widest">
-                            {COMPETITIONS.find(c => c.id === match.competitionId)?.name}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-6 flex-1 justify-center">
-                          <div className="flex items-center gap-4 flex-1 justify-end text-right">
-                            <span className="font-display text-xl truncate">{home.name}</span>
-                            <div className="w-3 h-3 rounded-full shadow-lg" style={{ backgroundColor: home.color }} />
-                          </div>
-                          <div className="font-display text-4xl italic flex items-center gap-4 bg-braskick-noite px-6 py-2 rounded-2xl border border-white/5">
-                            <span>{match.homeScore}</span>
-                            <span className="text-braskick-noite3">-</span>
-                            <span>{match.awayScore}</span>
-                          </div>
-                          <div className="flex items-center gap-4 flex-1">
-                            <div className="w-3 h-3 rounded-full shadow-lg" style={{ backgroundColor: away.color }} />
-                            <span className="font-display text-xl truncate">{away.name}</span>
+                          <div className="p-6 flex items-center justify-between">
+                            <div className="flex items-center gap-3 flex-1">
+                              <TeamDisplay team={home} size="small" />
+                              <span className="font-display text-xl uppercase tracking-widest">{getAbbreviation(home.name)}</span>
+                            </div>
+                            <div className="flex items-center gap-4 px-4">
+                              <div className="bg-braskick-noite rounded-xl px-4 py-2 border border-white/10 font-display text-3xl italic flex items-center gap-3">
+                                <span className={match.homeScore > match.awayScore ? 'text-white' : 'text-braskick-muted'}>{match.homeScore}</span>
+                                <span className="text-white/20">-</span>
+                                <span className={match.awayScore > match.homeScore ? 'text-white' : 'text-braskick-muted'}>{match.awayScore}</span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-3 flex-1 justify-end">
+                              <span className="font-display text-xl uppercase tracking-widest">{getAbbreviation(away.name)}</span>
+                              <TeamDisplay team={away} size="small" />
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })
+                      );
+                    })}
+                  </div>
                 )}
               </motion.div>
             )}
@@ -2520,42 +2653,75 @@ export default function App() {
             </div>
 
             {/* Campo de Jogo (Visualização) */}
-            <div className="flex-1 relative overflow-hidden p-4">
-              <div className="w-full h-full bg-emerald-900/30 rounded-[2rem] border-4 border-white/10 relative flex items-center justify-center">
-                {/* Linhas do Campo */}
-                <div className="absolute inset-4 border-2 border-white/10 rounded-[1.5rem]" />
-                <div className="absolute inset-y-4 left-1/2 w-0.5 bg-white/10" />
-                <div className="absolute w-32 h-32 border-2 border-white/10 rounded-full" />
+            <div className="flex-1 relative overflow-hidden p-4 flex items-center justify-center bg-braskick-noite">
+              <div className="w-full max-w-4xl aspect-[3/2] bg-[#2d5a27] rounded-lg border-4 border-white/20 relative shadow-2xl overflow-hidden">
+                {/* Grama (Padrão de Listras) */}
+                <div className="absolute inset-0 opacity-30" style={{ backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 10%, rgba(0,0,0,0.1) 10%, rgba(0,0,0,0.1) 20%)' }} />
+                <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 10%, rgba(0,0,0,0.1) 10%, rgba(0,0,0,0.1) 20%)' }} />
                 
-                {/* Jogadores (Simulados) */}
-                <AnimatePresence>
-                  {Array.from({ length: 22 }).map((_, i) => (
-                    <motion.div
-                      key={i}
-                      animate={{
-                        x: (Math.random() - 0.5) * 200,
-                        y: (Math.random() - 0.5) * 300,
-                      }}
-                      transition={{ duration: 2, repeat: Infinity, repeatType: 'reverse' }}
-                      className={`absolute w-3 h-3 rounded-full shadow-lg ${i < 11 ? 'bg-braskick-verde' : 'bg-braskick-ouro'}`}
-                    />
-                  ))}
-                </AnimatePresence>
+                {/* Linhas do Campo */}
+                <div className="absolute inset-0 border-2 border-white/40" />
+                <div className="absolute inset-y-0 left-1/2 w-0.5 bg-white/40" />
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 border-2 border-white/40 rounded-full" />
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1.5 h-1.5 bg-white/60 rounded-full" />
+                
+                {/* Áreas */}
+                <div className="absolute inset-y-1/4 left-0 w-20 border-2 border-l-0 border-white/40" />
+                <div className="absolute inset-y-1/4 right-0 w-20 border-2 border-r-0 border-white/40" />
+                <div className="absolute inset-y-[35%] left-0 w-8 border-2 border-l-0 border-white/40" />
+                <div className="absolute inset-y-[35%] right-0 w-8 border-2 border-r-0 border-white/40" />
+                
+                {/* Gols */}
+                <div className="absolute top-1/2 -translate-y-1/2 -left-1 w-2 h-16 bg-white/20 border border-white/40 rounded-r-lg" />
+                <div className="absolute top-1/2 -translate-y-1/2 -right-1 w-2 h-16 bg-white/20 border border-white/40 rounded-l-lg" />
 
+                {/* Jogadores */}
+                {matchSimulationData.playerPositions.map((p) => (
+                  <motion.div
+                    key={p.id}
+                    animate={{ x: `${p.x}%`, y: `${p.y}%` }}
+                    transition={{ type: 'spring', stiffness: 50, damping: 20 }}
+                    className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center z-10"
+                    style={{ left: 0, top: 0 }}
+                  >
+                    <div 
+                      className="w-3 h-3 sm:w-4 sm:h-4 rounded-full border-2 border-white shadow-lg flex items-center justify-center"
+                      style={{ backgroundColor: p.color }}
+                    >
+                      <div className="w-1 h-1 bg-white/50 rounded-full" />
+                    </div>
+                    <span className="text-[6px] sm:text-[8px] font-bold text-white bg-black/50 px-1 rounded mt-0.5 whitespace-nowrap uppercase tracking-tighter">
+                      {p.name.split(' ').pop()}
+                    </span>
+                  </motion.div>
+                ))}
+
+                {/* Bola */}
+                <motion.div
+                  animate={{ x: `${matchSimulationData.ball.x}%`, y: `${matchSimulationData.ball.y}%` }}
+                  transition={{ type: 'spring', stiffness: 100, damping: 10 }}
+                  className="absolute -translate-x-1/2 -translate-y-1/2 z-20"
+                  style={{ left: 0, top: 0 }}
+                >
+                  <div className="w-2 h-2 sm:w-3 sm:h-3 bg-white rounded-full shadow-2xl border border-black/20 flex items-center justify-center">
+                    <div className="w-full h-full rounded-full border border-black/10" style={{ backgroundImage: 'radial-gradient(circle, #fff 0%, #ddd 100%)' }} />
+                  </div>
+                </motion.div>
+                
                 {/* Eventos Recentes */}
-                <div className="absolute bottom-8 left-1/2 -translate-x-1/2 w-full max-w-md px-4">
+                <div className="absolute bottom-4 left-4 right-4 z-30">
                   <AnimatePresence mode="popLayout">
-                    {matchSimulationData.events.slice(-3).reverse().map((event, i) => (
+                    {matchSimulationData.events.slice(-2).reverse().map((event, i) => (
                       <motion.div
                         key={event.minute + i}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, scale: 0.9 }}
-                        className="bg-braskick-noite2/90 backdrop-blur-sm border border-braskick-ouro/30 p-3 rounded-xl mb-2 flex items-center gap-3"
+                        className="bg-braskick-noite2/90 backdrop-blur-sm border border-braskick-ouro/30 p-2 rounded-lg mb-1 flex items-center gap-2 max-w-xs"
                       >
-                        <Zap className="w-4 h-4 text-braskick-ouro" />
-                        <span className="font-display text-sm uppercase tracking-wider">
-                          {event.minute}' GOL! {event.playerName} ({gameState.teams.find(t => t.id === event.teamId)?.name})
+                        {event.type === 'goal' ? <Zap className="w-3 h-3 text-braskick-ouro" /> : <AlertTriangle className={`w-3 h-3 ${event.type === 'red_card' ? 'text-red-500' : 'text-yellow-500'}`} />}
+                        <span className="font-display text-[10px] uppercase tracking-wider text-white">
+                          {event.minute}' {event.type === 'goal' ? 'GOL!' : event.type === 'red_card' ? 'VERMELHO!' : 'AMARELO!'} {event.playerName}
                         </span>
                       </motion.div>
                     ))}
@@ -2612,14 +2778,200 @@ export default function App() {
                   </div>
                 </div>
 
-                <button
-                  onClick={() => simulateNextWeek(true)}
-                  className="ml-auto bg-red-500/10 hover:bg-red-500/20 text-red-400 px-6 py-3 rounded-xl border border-red-500/20 font-display text-sm uppercase tracking-widest transition-all"
-                >
-                  Pular Simulação
-                </button>
+                <div className="flex items-center gap-2 ml-auto">
+                  <button
+                    onClick={() => setMatchSimulationData(prev => prev ? { ...prev, isPaused: !prev.isPaused } : null)}
+                    className={`p-3 rounded-xl border transition-all flex items-center gap-2 font-display text-[10px] uppercase tracking-widest ${matchSimulationData.isPaused ? 'bg-braskick-ouro text-braskick-noite border-braskick-ouro' : 'bg-white/5 text-white border-white/10 hover:bg-white/10'}`}
+                  >
+                    {matchSimulationData.isPaused ? <Zap className="w-4 h-4" /> : <Zap className="w-4 h-4 opacity-50" />}
+                    {matchSimulationData.isPaused ? 'Continuar' : 'Pausar'}
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setMatchSimulationData(prev => prev ? { ...prev, isPaused: true } : null);
+                      setShowSubstitutions(true);
+                    }}
+                    className="p-3 bg-white/5 hover:bg-white/10 text-white rounded-xl border border-white/10 transition-all flex items-center gap-2 font-display text-[10px] uppercase tracking-widest"
+                  >
+                    <Users className="w-4 h-4" />
+                    Substituir
+                  </button>
+
+                  <button
+                    onClick={() => simulateNextWeek(true)}
+                    className="bg-red-500/10 hover:bg-red-500/20 text-red-400 px-6 py-3 rounded-xl border border-red-500/20 font-display text-[10px] uppercase tracking-widest transition-all"
+                  >
+                    Pular Jogo
+                  </button>
+                </div>
               </div>
             </div>
+          </motion.div>
+        )}
+
+        {showSubstitutions && matchSimulationData && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-braskick-noite/95 backdrop-blur-md"
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 30 }}
+              animate={{ scale: 1, y: 0 }}
+              className="bg-braskick-noite2 border border-white/10 rounded-[2rem] p-6 sm:p-8 max-w-2xl w-full shadow-2xl"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="font-display text-2xl uppercase tracking-widest">Substituições</h2>
+                <button 
+                  onClick={() => {
+                    setShowSubstitutions(false);
+                    setMatchSimulationData(prev => prev ? { ...prev, isPaused: false } : null);
+                  }}
+                  className="p-2 hover:bg-white/5 rounded-full transition-all"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div>
+                  <h3 className="text-[10px] font-bold text-braskick-muted uppercase tracking-widest mb-4">Titulares em Campo</h3>
+                  <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
+                    {matchSimulationData.homeTeam.players.slice(0, 11).map(player => {
+                      const isSubbedOut = matchSimulationData.substitutions.some(s => s.out === player.id);
+                      if (isSubbedOut) return null;
+                      return (
+                        <button
+                          key={player.id}
+                          onClick={() => {
+                            // Lógica de substituição simplificada
+                            const bench = matchSimulationData.homeTeam.players.slice(11);
+                            const availableSub = bench.find(b => !matchSimulationData.substitutions.some(s => s.in === b.id));
+                            if (availableSub) {
+                              setMatchSimulationData(prev => {
+                                if (!prev) return null;
+                                const newSubs = [...prev.substitutions, { out: player.id, in: availableSub.id, minute: prev.time, teamId: prev.homeTeam.id }];
+                                const newEvents: MatchEvent[] = [...prev.events, {
+                                  minute: prev.time,
+                                  type: 'substitution',
+                                  playerName: `${player.name} -> ${availableSub.name}`,
+                                  teamId: prev.homeTeam.id
+                                }];
+                                return { ...prev, substitutions: newSubs, events: newEvents };
+                              });
+                            }
+                          }}
+                          className="w-full flex items-center justify-between p-3 bg-white/5 hover:bg-white/10 rounded-xl border border-white/5 transition-all text-left"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-braskick-noite flex items-center justify-center text-[10px] font-bold border border-white/10">
+                              {player.overall}
+                            </div>
+                            <div>
+                              <div className="text-xs font-bold uppercase">{player.name}</div>
+                              <div className="text-[10px] text-braskick-muted">{player.position}</div>
+                            </div>
+                          </div>
+                          <RotateCcw className="w-4 h-4 text-braskick-ouro opacity-50" />
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-[10px] font-bold text-braskick-muted uppercase tracking-widest mb-4">Banco de Reservas</h3>
+                  <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
+                    {matchSimulationData.homeTeam.players.slice(11).map(player => {
+                      const isSubbedIn = matchSimulationData.substitutions.some(s => s.in === player.id);
+                      return (
+                        <div
+                          key={player.id}
+                          className={`flex items-center justify-between p-3 rounded-xl border transition-all ${isSubbedIn ? 'bg-braskick-verde/10 border-braskick-verde/20 opacity-50' : 'bg-white/5 border-white/5'}`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-braskick-noite flex items-center justify-center text-[10px] font-bold border border-white/10">
+                              {player.overall}
+                            </div>
+                            <div>
+                              <div className="text-xs font-bold uppercase">{player.name}</div>
+                              <div className="text-[10px] text-braskick-muted">{player.position}</div>
+                            </div>
+                          </div>
+                          {isSubbedIn && <span className="text-[8px] font-bold text-braskick-verde uppercase tracking-widest">Em Campo</span>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              <button
+                onClick={() => {
+                  setShowSubstitutions(false);
+                  setMatchSimulationData(prev => prev ? { ...prev, isPaused: false } : null);
+                }}
+                className="w-full mt-8 py-4 bg-braskick-ouro text-braskick-noite font-display text-lg uppercase tracking-widest rounded-2xl transition-all shadow-xl shadow-braskick-ouro/20"
+              >
+                Confirmar e Voltar ao Jogo
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {showTips && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-braskick-noite/95 backdrop-blur-md"
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 30 }}
+              animate={{ scale: 1, y: 0 }}
+              className="bg-braskick-noite2 border border-white/10 rounded-[2rem] p-8 max-w-md w-full shadow-2xl"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <Lightbulb className="w-8 h-8 text-braskick-ouro" />
+                  <h2 className="font-display text-2xl uppercase tracking-widest">Dicas de Evolução</h2>
+                </div>
+                <button 
+                  onClick={() => setShowTips(false)}
+                  className="p-2 hover:bg-white/5 rounded-full transition-all"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div className="bg-white/5 p-4 rounded-2xl border border-white/5">
+                  <h3 className="text-braskick-ouro text-xs font-bold uppercase tracking-widest mb-2">Treinamento Focado</h3>
+                  <p className="text-braskick-muted text-[10px] leading-relaxed">
+                    Realize treinamentos diários para aumentar os atributos específicos da sua posição. Atacantes devem focar em finalização, enquanto defensores em marcação.
+                  </p>
+                </div>
+                <div className="bg-white/5 p-4 rounded-2xl border border-white/5">
+                  <h3 className="text-braskick-ouro text-xs font-bold uppercase tracking-widest mb-2">Descanso é Fundamental</h3>
+                  <p className="text-braskick-muted text-[10px] leading-relaxed">
+                    Não exagere nos treinos antes de jogos importantes. Jogadores cansados rendem menos e têm mais chances de lesão.
+                  </p>
+                </div>
+                <div className="bg-white/5 p-4 rounded-2xl border border-white/5">
+                  <h3 className="text-braskick-ouro text-xs font-bold uppercase tracking-widest mb-2">Desempenho em Campo</h3>
+                  <p className="text-braskick-muted text-[10px] leading-relaxed">
+                    Boas notas nos jogos aceleram sua evolução. Tente manter uma média alta para atrair olhares de clubes maiores.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setShowTips(false)}
+                className="w-full mt-8 py-4 bg-braskick-ouro text-braskick-noite font-display text-lg uppercase tracking-widest rounded-2xl transition-all shadow-xl shadow-braskick-ouro/20"
+              >
+                Entendido
+              </button>
+            </motion.div>
           </motion.div>
         )}
 
@@ -2633,37 +2985,74 @@ export default function App() {
             <motion.div
               initial={{ scale: 0.9, y: 30 }}
               animate={{ scale: 1, y: 0 }}
-              className="bg-braskick-noite2 border border-braskick-noite3 rounded-[1.5rem] sm:rounded-[2.5rem] p-6 sm:p-10 max-w-xl w-full shadow-2xl relative overflow-hidden"
+              className="bg-braskick-noite2 border border-braskick-noite3 rounded-[1.5rem] sm:rounded-[2.5rem] p-6 sm:p-10 max-w-2xl w-full shadow-2xl relative overflow-hidden"
             >
               <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-braskick-verde via-braskick-ouro to-braskick-azul" />
 
               <div className="text-center mb-6 sm:mb-10">
-                <div className="font-display text-xs sm:text-xl text-braskick-muted mb-4 sm:mb-6 tracking-[0.2em] sm:tracking-[0.3em] uppercase">RESULTADO DA RODADA {gameState.currentWeek - 1}</div>
+                <div className="font-display text-xs sm:text-xl text-braskick-muted mb-4 sm:mb-6 tracking-[0.2em] sm:tracking-[0.3em] uppercase">RELATÓRIO DA PARTIDA • RODADA {gameState.currentWeek - 1}</div>
                 <div className="flex items-center justify-between sm:justify-around py-4 sm:py-8 bg-braskick-noite/50 rounded-2xl sm:rounded-[2rem] border border-white/5 px-2">
-                  <TeamDisplay team={gameState.teams.find(t => t.id === lastMatchResult.homeTeamId)} size="small" />
+                  <div className="flex flex-col items-center gap-2">
+                    <TeamDisplay team={gameState.teams.find(t => t.id === lastMatchResult.homeTeamId)} size="large" />
+                    <span className="font-display text-xs text-braskick-muted uppercase tracking-widest">{gameState.teams.find(t => t.id === lastMatchResult.homeTeamId)?.name}</span>
+                  </div>
                   <div className="font-display text-4xl sm:text-7xl italic flex items-center gap-2 sm:gap-6">
                     <span className={lastMatchResult.homeScore > lastMatchResult.awayScore ? 'text-white' : 'text-braskick-muted'}>{lastMatchResult.homeScore}</span>
                     <span className="text-braskick-noite3">-</span>
                     <span className={lastMatchResult.awayScore > lastMatchResult.homeScore ? 'text-white' : 'text-braskick-muted'}>{lastMatchResult.awayScore}</span>
                   </div>
-                  <TeamDisplay team={gameState.teams.find(t => t.id === lastMatchResult.awayTeamId)} size="small" />
+                  <div className="flex flex-col items-center gap-2">
+                    <TeamDisplay team={gameState.teams.find(t => t.id === lastMatchResult.awayTeamId)} size="large" />
+                    <span className="font-display text-xs text-braskick-muted uppercase tracking-widest">{gameState.teams.find(t => t.id === lastMatchResult.awayTeamId)?.name}</span>
+                  </div>
                 </div>
               </div>
 
-              <div className="space-y-3 sm:space-y-4 mb-6 sm:mb-10 max-h-40 sm:max-h-48 overflow-y-auto pr-2 sm:pr-4 custom-scrollbar">
-                {lastMatchResult.events.map((event, i) => (
-                  <div key={i} className="flex items-center gap-3 sm:gap-4 p-2 sm:p-3 rounded-xl bg-white/5 border border-white/5">
-                    <span className="font-display text-sm sm:text-xl text-braskick-muted w-8 sm:w-10">{event.minute}'</span>
-                    <Zap className="w-4 h-4 sm:w-5 h-5 text-braskick-ouro" />
-                    <div className="flex-1">
-                      <span className="font-display text-sm sm:text-xl block leading-none">{event.playerName}</span>
-                      <span className="text-[8px] sm:text-[10px] font-bold text-braskick-muted uppercase tracking-widest">GOL PARA O {gameState.teams.find(t => t.id === event.teamId)?.name}</span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6 sm:mb-10">
+                <div className="space-y-2">
+                  <h4 className="text-[10px] font-bold text-braskick-muted uppercase tracking-widest mb-2">Gols e Eventos</h4>
+                  <div className="space-y-2 max-h-40 overflow-y-auto pr-2 custom-scrollbar">
+                    {lastMatchResult.events.map((event, i) => (
+                      <div key={i} className="flex items-center gap-3 p-2 rounded-lg bg-white/5 border border-white/5">
+                        <span className="font-display text-sm text-braskick-muted">{event.minute}'</span>
+                        {event.type === 'goal' ? <Zap className="w-3 h-3 text-braskick-ouro" /> : <AlertTriangle className={`w-3 h-3 ${event.type === 'red_card' ? 'text-red-500' : 'text-yellow-500'}`} />}
+                        <div className="flex-1">
+                          <span className="font-display text-sm block leading-none">{event.playerName}</span>
+                          <span className="text-[8px] font-bold text-braskick-muted uppercase tracking-widest">
+                            {event.type === 'goal' ? 'GOL' : event.type === 'red_card' ? 'EXPULSÃO' : 'CARTÃO AMARELO'} • {gameState.teams.find(t => t.id === event.teamId)?.name}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                    {lastMatchResult.events.length === 0 && (
+                      <div className="text-center py-4 text-braskick-muted font-display text-xs uppercase tracking-widest opacity-50">SEM EVENTOS REGISTRADOS</div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <h4 className="text-[10px] font-bold text-braskick-muted uppercase tracking-widest mb-2">Estatísticas</h4>
+                  <div className="space-y-3 bg-white/5 p-4 rounded-xl border border-white/5">
+                    <div className="flex justify-between items-center text-[10px] uppercase tracking-widest font-bold">
+                      <span>{gameState.teams.find(t => t.id === lastMatchResult.homeTeamId)?.overall}</span>
+                      <span className="text-braskick-muted">FORÇA EQUIPE</span>
+                      <span>{gameState.teams.find(t => t.id === lastMatchResult.awayTeamId)?.overall}</span>
+                    </div>
+                    <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden flex">
+                      <div 
+                        className="h-full bg-braskick-verde" 
+                        style={{ width: `${(gameState.teams.find(t => t.id === lastMatchResult.homeTeamId)?.overall || 50) / ((gameState.teams.find(t => t.id === lastMatchResult.homeTeamId)?.overall || 50) + (gameState.teams.find(t => t.id === lastMatchResult.awayTeamId)?.overall || 50)) * 100}%` }} 
+                      />
+                      <div 
+                        className="h-full bg-braskick-ouro" 
+                        style={{ width: `${(gameState.teams.find(t => t.id === lastMatchResult.awayTeamId)?.overall || 50) / ((gameState.teams.find(t => t.id === lastMatchResult.homeTeamId)?.overall || 50) + (gameState.teams.find(t => t.id === lastMatchResult.awayTeamId)?.overall || 50)) * 100}%` }} 
+                      />
+                    </div>
+                    <div className="text-center mt-4">
+                      <span className="text-[10px] font-bold text-braskick-verde uppercase tracking-widest">PARTIDA FINALIZADA</span>
                     </div>
                   </div>
-                ))}
-                {lastMatchResult.events.length === 0 && (
-                  <div className="text-center py-6 sm:py-8 text-braskick-muted font-display text-sm sm:text-xl uppercase tracking-widest opacity-50">SEM GOLS NA PARTIDA</div>
-                )}
+                </div>
               </div>
 
               <button

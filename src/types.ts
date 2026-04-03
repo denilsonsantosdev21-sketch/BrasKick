@@ -69,7 +69,7 @@ export interface Team {
 
 export interface MatchEvent {
   minute: number;
-  type: 'goal' | 'yellow_card' | 'red_card' | 'injury';
+  type: 'goal' | 'yellow_card' | 'red_card' | 'injury' | 'substitution';
   playerName: string;
   teamId: string;
 }
