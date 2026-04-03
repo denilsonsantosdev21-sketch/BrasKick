@@ -379,6 +379,7 @@ export default function App() {
           midfield: t.midfield,
           defense: t.defense,
           budget: t.budget,
+          revenue: t.revenue || 0,
           points: t.points,
           played: t.played,
           won: t.won,
