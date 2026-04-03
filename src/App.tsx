@@ -74,7 +74,7 @@ const StandingsRow = ({ team, index, userTeamId }: { team: Team, index: number, 
     <td className="p-6">
       <div className="flex items-center gap-4">
         <div
-          className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shadow-sm border border-slate-100 overflow-hidden"
+          className={`w-10 h-10 ${team.logo ? 'rounded-lg' : 'rounded-full'} flex items-center justify-center text-white font-bold shadow-sm border border-slate-100 overflow-hidden`}
           style={{ backgroundColor: team.color }}
         >
           {team.logo ? (
@@ -424,7 +424,9 @@ export default function App() {
           home_score: m.homeScore,
           away_score: m.awayScore,
           played: m.played,
-          events: m.events
+          events: m.events,
+          attendance: m.attendance || 0,
+          revenue: m.revenue || 0
         })));
 
       if (matchesError) throw matchesError;
@@ -3360,10 +3362,11 @@ function TeamDisplay({ team, size = 'large' }: { team: Team | undefined, size?: 
   const isWhite = team.color.toLowerCase() === '#ffffff' || team.color.toLowerCase() === 'white';
   const logoSize = size === 'large' ? 'w-12 h-12 sm:w-20 sm:h-20' : 'w-8 h-8 sm:w-12 sm:h-12';
   const textSize = size === 'large' ? 'text-sm sm:text-xl' : 'text-[10px] sm:text-sm';
+  const borderRadius = team.logo ? 'rounded-lg sm:rounded-2xl' : 'rounded-full';
   
   return (
     <div className="text-center group flex flex-col items-center">
-      <div className={`${logoSize} rounded-xl sm:rounded-[1.5rem] mb-2 sm:mb-4 flex items-center justify-center text-xl sm:text-4xl font-display shadow-2xl transition-transform group-hover:scale-110 overflow-hidden border border-white/10`} style={{ backgroundColor: team.color, color: isWhite ? '#000000' : '#ffffff' }}>
+      <div className={`${logoSize} ${borderRadius} mb-2 sm:mb-4 flex items-center justify-center text-xl sm:text-4xl font-display shadow-2xl transition-transform group-hover:scale-110 overflow-hidden border border-white/10`} style={{ backgroundColor: team.color, color: isWhite ? '#000000' : '#ffffff' }}>
         {team.logo ? <img src={team.logo} alt="" className="w-full h-full object-contain" referrerPolicy="no-referrer" /> : team.name.substring(0, 1)}
       </div>
       <div className={`font-display ${textSize} uppercase tracking-wider truncate max-w-[80px] sm:max-w-[120px]`}>{team.name}</div>
