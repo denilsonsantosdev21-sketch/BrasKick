@@ -1,11 +1,21 @@
 export type CompetitionType = 'LEAGUE' | 'TOURNAMENT';
 
+export interface CompetitionRule {
+  id: string;
+  minPosition: number;
+  maxPosition: number;
+  targetCompetitionId: string;
+  type: 'QUALIFICATION' | 'RELEGATION' | 'PROMOTION';
+  description: string;
+}
+
 export interface Competition {
   id: string;
   name: string;
   type: CompetitionType;
   format?: 'LEAGUE' | 'GROUPS' | 'KNOCKOUT' | 'GROUPS_KNOCKOUT';
   rules?: string;
+  detailedRules?: CompetitionRule[];
   region: 'BRAZIL' | 'EUROPE' | 'SOUTH_AMERICA' | 'WORLD';
   tier?: number;
   logo?: string;
@@ -21,6 +31,12 @@ export interface Competition {
   groupsCount?: number;
   teamsPerGroup?: number;
   participatingCountries?: string[];
+  prizeMoney?: {
+    participation: number;
+    win: number;
+    draw: number;
+    position: { [pos: number]: number };
+  };
 }
 
 export interface Player {
@@ -61,17 +77,24 @@ export interface Team {
   ga: number;
   gd: number;
   budget: number;
+  revenue?: number;
   color: string;
   logo?: string;
   form: ('W' | 'D' | 'L')[];
+  groupId?: string;
   isNationalTeam?: boolean;
+  stadiumCapacity?: number;
+  ticketPrice?: number;
+  fansCount?: number;
+  formation?: Formation;
 }
 
 export interface MatchEvent {
   minute: number;
-  type: 'goal' | 'yellow_card' | 'red_card' | 'injury' | 'substitution';
+  type: 'goal' | 'yellow_card' | 'red_card' | 'injury' | 'substitution' | 'foul' | 'corner' | 'offside' | 'throw_in';
   playerName: string;
   teamId: string;
+  playerNameIn?: string; // For substitutions
 }
 
 export interface Match {
@@ -85,7 +108,20 @@ export interface Match {
   awayScore: number;
   played: boolean;
   events: MatchEvent[];
+  attendance?: number;
+  revenue?: number;
 }
+
+export interface JobOffer {
+  id: string;
+  teamId: string;
+  salary: number;
+  contractLength: number; // in seasons
+  message: string;
+  type: 'CLUB' | 'NATIONAL_TEAM';
+}
+
+export type Formation = '4-4-2' | '4-3-3' | '3-5-2' | '4-2-3-1' | '5-3-2' | '4-5-1';
 
 export interface GameState {
   userTeamId: string;
@@ -105,4 +141,5 @@ export interface GameState {
   matches: Match[];
   history: Match[];
   coins: number;
+  jobOffers?: JobOffer[];
 }

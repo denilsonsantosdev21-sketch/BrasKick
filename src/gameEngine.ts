@@ -1080,7 +1080,7 @@ export const simulateMatch = (home: Team, away: Team, week: number, competitionI
     }
   };
 
-  // Gera eventos de cartões e lesões
+  // Gera eventos de cartões, lesões e outros eventos de jogo
   const addRandomEvents = (team: Team) => {
     const players = team.players.filter(p => !p.isInjured && !p.isSuspended);
     if (players.length === 0) return;
@@ -1119,12 +1119,33 @@ export const simulateMatch = (home: Team, away: Team, week: number, competitionI
         teamId: team.id
       });
     }
+
+    // Faltas, Escanteios, Impedimentos (Eventos visuais)
+    if (Math.random() < 0.3) {
+      const types: ('foul' | 'corner' | 'offside' | 'throw_in')[] = ['foul', 'corner', 'offside', 'throw_in'];
+      const type = types[Math.floor(Math.random() * types.length)];
+      const player = players[Math.floor(Math.random() * players.length)];
+      events.push({
+        minute: Math.floor(Math.random() * 90) + 1,
+        type,
+        playerName: player.name,
+        teamId: team.id
+      });
+    }
   };
 
   addGoalEvents(homeScore, home);
   addGoalEvents(awayScore, away);
   addRandomEvents(home);
   addRandomEvents(away);
+
+  // Cálculo de Público e Renda
+  const stadiumCapacity = home.stadiumCapacity || 30000;
+  const baseAttendance = stadiumCapacity * (0.6 + Math.random() * 0.4);
+  const performanceFactor = (home.overall / 100) * (away.overall / 100);
+  const attendance = Math.round(baseAttendance * (0.8 + performanceFactor * 0.4));
+  const ticketPrice = home.ticketPrice || 50;
+  const revenue = attendance * ticketPrice;
 
   return {
     id: generateUUID(),
@@ -1135,7 +1156,9 @@ export const simulateMatch = (home: Team, away: Team, week: number, competitionI
     homeScore,
     awayScore,
     played: true,
-    events: events.sort((a, b) => a.minute - b.minute)
+    events: events.sort((a, b) => a.minute - b.minute),
+    attendance,
+    revenue
   };
 };
 
@@ -1182,6 +1205,47 @@ export const updateStandings = (teams: Team[], match: Match): Team[] => {
 
     return team;
   });
+};
+
+export const generateJobOffers = (teams: Team[], currentTeamId: string, managerOverall: number): any[] => {
+  const offers: any[] = [];
+  const availableTeams = teams.filter(t => t.id !== currentTeamId && !t.isNationalTeam);
+  
+  // 10% chance of receiving a club offer each week
+  if (Math.random() < 0.1) {
+    const targetTeam = availableTeams[Math.floor(Math.random() * availableTeams.length)];
+    // Only offer if manager overall is somewhat close to team overall
+    if (managerOverall >= targetTeam.overall - 10) {
+      offers.push({
+        id: generateUUID(),
+        teamId: targetTeam.id,
+        salary: Math.round(targetTeam.budget * 0.001),
+        contractLength: 2 + Math.floor(Math.random() * 3),
+        message: `O ${targetTeam.name} está impressionado com seu trabalho e gostaria de contar com você para as próximas temporadas.`,
+        type: 'CLUB'
+      });
+    }
+  }
+
+  // 5% chance of receiving a national team offer
+  if (Math.random() < 0.05) {
+    const nationalTeams = teams.filter(t => t.isNationalTeam);
+    if (nationalTeams.length > 0) {
+      const targetNT = nationalTeams[Math.floor(Math.random() * nationalTeams.length)];
+      if (managerOverall >= 75) {
+        offers.push({
+          id: generateUUID(),
+          teamId: targetNT.id,
+          salary: 0, // National teams usually don't pay "salary" in this game's context or it's symbolic
+          contractLength: 4,
+          message: `A Federação de Futebol do ${targetNT.name} convida você para assumir o comando técnico da seleção nacional.`,
+          type: 'NATIONAL_TEAM'
+        });
+      }
+    }
+  }
+
+  return offers;
 };
 
 // Reseta os times para uma nova temporada

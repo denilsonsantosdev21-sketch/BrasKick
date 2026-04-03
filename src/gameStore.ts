@@ -1,10 +1,9 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { GameState, Team, Match, Player, Competition } from './types';
+import { GameState, Team, Match, Player, Competition, Formation } from './types';
 
 interface GameStore {
   gameState: GameState | null;
-  moedas: number;
   dinheiroJogo: number;
   
   // Actions
@@ -13,8 +12,6 @@ interface GameStore {
   addHistory: (matches: Match[]) => void;
   nextWeek: () => void;
   nextSeason: (newTeams: Team[], newSchedule: Match[]) => void;
-  adicionarMoedas: (n: number) => void;
-  gastarMoedas: (n: number) => boolean;
   buyPlayer: (player: Player, fromTeamId: string, toTeamId: string, price: number) => boolean;
   sellPlayer: (player: Player, fromTeamId: string, price: number) => void;
   baseTeams: Team[];
@@ -33,14 +30,16 @@ interface GameStore {
   updateTeam: (team: Team) => void;
   deleteTeam: (id: string) => void;
   updatePlayer: (teamId: string, player: Player) => void;
-  convertCoinsToMoney: () => boolean;
+  acceptJobOffer: (offerId: string) => void;
+  declineJobOffer: (offerId: string) => void;
+  updateFormation: (teamId: string, formation: Formation) => void;
+  addRevenue: (teamId: string, amount: number) => void;
 }
 
 export const useGameStore = create<GameStore>()(
   persist(
     (set, get) => ({
       gameState: null,
-      moedas: 500,
       dinheiroJogo: 0,
 
       setGameState: (state) => set({ gameState: state }),
@@ -74,8 +73,6 @@ export const useGameStore = create<GameStore>()(
           history: [] 
         } : null
       })),
-
-      adicionarMoedas: (n) => set((state) => ({ moedas: state.moedas + n })),
 
       buyPlayer: (player, fromTeamId, toTeamId, price) => {
         const { gameState } = get();
@@ -136,37 +133,11 @@ export const useGameStore = create<GameStore>()(
         set({ gameState: { ...gameState, teams: updatedTeams } });
       },
 
-      gastarMoedas: (n) => {
-        const { moedas } = get();
-        if (moedas < n) return false;
-        set({ moedas: moedas - n });
-        return true;
-      },
-
-      convertCoinsToMoney: () => {
-        const { moedas, gameState } = get();
-        if (moedas <= 0 || !gameState) return false;
-        
-        const moneyToAdd = moedas * 5;
-        const updatedTeams = gameState.teams.map(team => {
-          if (team.id === gameState.userTeamId) {
-            return { ...team, budget: team.budget + moneyToAdd };
-          }
-          return team;
-        });
-
-        set({ 
-          moedas: 0, 
-          gameState: { ...gameState, teams: updatedTeams } 
-        });
-        return true;
-      },
-
       baseTeams: [],
       baseCompetitions: [],
       setBaseTeams: (teams) => set({ baseTeams: teams }),
       setBaseCompetitions: (competitions) => set({ baseCompetitions: competitions }),
-      resetGame: () => set({ gameState: null, moedas: 500, dinheiroJogo: 0 }),
+      resetGame: () => set({ gameState: null, dinheiroJogo: 0 }),
       restartSeason: () => set((state) => {
         if (!state.gameState) return state;
         const resetTeams = state.gameState.teams.map(t => ({
@@ -247,7 +218,7 @@ export const useGameStore = create<GameStore>()(
         } : null
       })),
 
-      updatePlayer: (teamId, player) => set((state) => ({
+      updatePlayer: (teamId: string, player: Player) => set((state) => ({
         gameState: state.gameState ? {
           ...state.gameState,
           teams: state.gameState.teams.map(team => {
@@ -259,6 +230,45 @@ export const useGameStore = create<GameStore>()(
             }
             return team;
           })
+        } : null
+      })),
+
+      acceptJobOffer: (offerId) => set((state) => {
+        if (!state.gameState) return state;
+        const offer = state.gameState.jobOffers?.find(o => o.id === offerId);
+        if (!offer) return state;
+
+        const newTeamId = offer.teamId;
+        const updatedJobOffers = state.gameState.jobOffers?.filter(o => o.id !== offerId);
+
+        return {
+          gameState: {
+            ...state.gameState,
+            userTeamId: offer.type === 'CLUB' ? newTeamId : state.gameState.userTeamId,
+            userNationalTeamId: offer.type === 'NATIONAL_TEAM' ? newTeamId : state.gameState.userNationalTeamId,
+            jobOffers: updatedJobOffers
+          }
+        };
+      }),
+
+      declineJobOffer: (offerId) => set((state) => ({
+        gameState: state.gameState ? {
+          ...state.gameState,
+          jobOffers: state.gameState.jobOffers?.filter(o => o.id !== offerId)
+        } : null
+      })),
+
+      updateFormation: (teamId, formation) => set((state) => ({
+        gameState: state.gameState ? {
+          ...state.gameState,
+          teams: state.gameState.teams.map(t => t.id === teamId ? { ...t, formation } : t)
+        } : null
+      })),
+
+      addRevenue: (teamId, amount) => set((state) => ({
+        gameState: state.gameState ? {
+          ...state.gameState,
+          teams: state.gameState.teams.map(t => t.id === teamId ? { ...t, budget: t.budget + amount } : t)
         } : null
       })),
     }),

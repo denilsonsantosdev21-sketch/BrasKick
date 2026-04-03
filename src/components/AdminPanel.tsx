@@ -34,6 +34,7 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
   const [selectedCompId, setSelectedCompId] = useState<string | null>(null);
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
   const [editingItem, setEditingItem] = useState<any>(null);
+  const [editingCountry, setEditingCountry] = useState<any>(null);
   const [showCountrySelector, setShowCountrySelector] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -390,63 +391,95 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                 className="space-y-8"
               >
                 <div className="flex items-center justify-between">
-                  <h2 className="font-display text-3xl uppercase tracking-widest">Gerenciar Países</h2>
-                  <button 
-                    onClick={() => setEditingItem({ name: '', type: 'LEAGUE', region: 'BRAZIL', tier: 1, countryName: '', countryFlag: '' })}
-                    className="braskick-button-primary flex items-center gap-2"
-                  >
-                    <Plus className="w-5 h-5" /> NOVO PAÍS
-                  </button>
+                  <div>
+                    <h2 className="font-display text-3xl uppercase tracking-widest">Países e Bandeiras</h2>
+                    <p className="text-braskick-muted text-xs uppercase tracking-widest">Gerencie as bandeiras dos países e os jogadores das seleções nacionais.</p>
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {Array.from(new Set(competitions.map(c => c.countryName))).filter(Boolean).map(countryName => {
-                    const comp = competitions.find(c => c.countryName === countryName);
-                    return (
-                      <div key={countryName} className="braskick-card group">
-                        <div className="flex items-center justify-between mb-4">
-                          <div className="flex items-center gap-3">
-                            <img src={comp?.countryFlag} alt="" className="w-10 h-6 object-cover rounded shadow-sm" />
-                            <div className="font-display text-lg leading-none">{countryName}</div>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <button 
-                              onClick={() => setEditingItem(comp)}
-                              className="p-2 hover:bg-white/5 rounded-lg transition-colors text-braskick-muted hover:text-white"
-                            >
-                              <Edit2 className="w-4 h-4" />
-                            </button>
-                            <button 
-                              onClick={() => {
-                                if (window.confirm(`Excluir todas as ligas de ${countryName}?`)) {
-                                  competitions.filter(c => c.countryName === countryName).forEach(c => deleteCompetition(c.id));
-                                }
-                              }}
-                              className="p-2 hover:bg-red-500/10 rounded-lg transition-colors text-braskick-muted hover:text-red-400"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </div>
-                        <button 
-                          onClick={() => { 
-                            setEditingItem({ 
-                              name: '', 
-                              type: 'LEAGUE', 
-                              region: comp?.region || 'BRAZIL', 
-                              tier: 1, 
-                              countryName: countryName, 
-                              countryFlag: comp?.countryFlag 
-                            });
-                          }}
-                          className="w-full text-[10px] font-bold uppercase tracking-widest py-2 bg-braskick-verde/10 text-braskick-verde hover:bg-braskick-verde/20 rounded-lg transition-colors"
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {gameState?.teams.filter(t => t.isNationalTeam).map(country => (
+                    <div key={country.id} className="braskick-card group flex flex-col items-center text-center">
+                      <div className="w-24 h-16 bg-white/5 rounded-lg mb-4 overflow-hidden border border-white/10 relative shadow-xl">
+                        {country.logo ? (
+                          <img src={country.logo} alt={country.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                        ) : (
+                          <Flag className="w-8 h-8 text-white/20 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+                        )}
+                      </div>
+                      <h3 className="font-display text-lg uppercase tracking-wider mb-1">{country.name}</h3>
+                      <p className="text-[10px] font-bold text-braskick-muted uppercase tracking-widest mb-4">{country.players.length} Jogadores Convocados</p>
+                      
+                      <div className="flex items-center gap-2 w-full">
+                        <button
+                          onClick={() => setEditingCountry(country)}
+                          className="flex-1 py-2 bg-white/5 hover:bg-white/10 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all border border-white/5"
                         >
-                          Adicionar Liga
+                          Alterar Bandeira
+                        </button>
+                        <button
+                          onClick={() => { setSelectedTeamId(country.id); setActiveTab('players'); }}
+                          className="flex-1 py-2 bg-braskick-verde/10 hover:bg-braskick-verde/20 text-braskick-verde rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all border border-braskick-verde/20"
+                        >
+                          Ver Jogadores
                         </button>
                       </div>
-                    );
-                  })}
+                    </div>
+                  ))}
                 </div>
+
+                {editingCountry && (
+                  <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
+                    <div className="bg-braskick-noite2 border border-white/10 rounded-[2rem] p-8 max-w-md w-full shadow-2xl">
+                      <div className="flex items-center justify-between mb-6">
+                        <h2 className="font-display text-2xl uppercase tracking-widest">Editar Bandeira</h2>
+                        <button onClick={() => setEditingCountry(null)} className="p-2 hover:bg-white/5 rounded-full"><X className="w-5 h-5" /></button>
+                      </div>
+                      
+                      <div className="space-y-6">
+                        <div className="flex justify-center mb-4">
+                           <div className="w-32 h-20 bg-white/5 rounded-xl overflow-hidden border border-white/10 shadow-2xl">
+                             {editingCountry.logo ? (
+                               <img src={editingCountry.logo} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                             ) : (
+                               <Flag className="w-10 h-10 text-white/10 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+                             )}
+                           </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-bold text-braskick-muted uppercase tracking-widest">URL da Bandeira (SVG/PNG)</label>
+                          <input
+                            type="text"
+                            value={editingCountry.logo || ''}
+                            onChange={(e) => setEditingCountry({ ...editingCountry, logo: e.target.value })}
+                            placeholder="https://flagcdn.com/br.svg"
+                            className="w-full bg-braskick-noite border border-white/10 rounded-xl p-4 text-sm focus:border-braskick-verde outline-none transition-all"
+                          />
+                          <p className="text-[9px] text-braskick-muted italic">Dica: Use sites como flagcdn.com para obter URLs de bandeiras.</p>
+                        </div>
+
+                        <div className="flex items-center gap-4 pt-4">
+                          <button
+                            onClick={() => setEditingCountry(null)}
+                            className="flex-1 py-4 bg-white/5 hover:bg-white/10 rounded-2xl text-xs font-bold uppercase tracking-widest transition-all"
+                          >
+                            Cancelar
+                          </button>
+                          <button
+                            onClick={() => {
+                              updateTeam(editingCountry);
+                              setEditingCountry(null);
+                            }}
+                            className="flex-1 py-4 bg-braskick-verde text-braskick-noite rounded-2xl text-xs font-bold uppercase tracking-widest transition-all shadow-lg shadow-braskick-verde/20"
+                          >
+                            Salvar Bandeira
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </motion.div>
             )}
 
@@ -661,6 +694,16 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                         />
                       </div>
                       <div className="col-span-2">
+                        <label className="block text-[10px] font-bold text-braskick-muted uppercase tracking-widest mb-2">URL do Logo</label>
+                        <input 
+                          type="text" 
+                          value={editingItem.logo || ''}
+                          onChange={(e) => setEditingItem({ ...editingItem, logo: e.target.value })}
+                          className="w-full bg-braskick-noite border border-white/10 rounded-xl p-3 text-white outline-none focus:border-braskick-verde"
+                          placeholder="https://..."
+                        />
+                      </div>
+                      <div className="col-span-2">
                         <label className="block text-[10px] font-bold text-braskick-muted uppercase tracking-widest mb-2">Regras / Oberservações</label>
                         <textarea 
                           value={editingItem.rules || ''}
@@ -728,15 +771,123 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                           placeholder="https://..."
                         />
                       </div>
-                      <div className="col-span-2 grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-[10px] font-bold text-braskick-muted uppercase tracking-widest mb-2">Rebaixados</label>
-                          <input type="number" value={editingItem.relegationCount || 0} onChange={(e) => setEditingItem({...editingItem, relegationCount: parseInt(e.target.value)})} className="w-full bg-braskick-noite border border-white/10 rounded-xl p-3 text-white outline-none" />
+                      <div className="col-span-2 space-y-4 border-t border-white/5 pt-6 mt-6">
+                        <div className="flex items-center justify-between">
+                          <h3 className="font-display text-sm uppercase tracking-widest text-braskick-ouro">Regras de Acesso e Rebaixamento</h3>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const rules = editingItem.detailedRules || [];
+                              setEditingItem({
+                                ...editingItem,
+                                detailedRules: [...rules, {
+                                  id: Math.random().toString(36).substr(2, 9),
+                                  minPosition: 1,
+                                  maxPosition: 1,
+                                  targetCompetitionId: '',
+                                  type: 'QUALIFICATION',
+                                  description: ''
+                                }]
+                              });
+                            }}
+                            className="text-[10px] bg-white/5 hover:bg-white/10 px-3 py-1 rounded-md uppercase font-bold tracking-wider transition-all border border-white/5"
+                          >
+                            + Adicionar Regra (Acesso/Qualificação/Rebaixamento)
+                          </button>
                         </div>
-                        <div>
-                          <label className="block text-[10px] font-bold text-braskick-muted uppercase tracking-widest mb-2">Sobem</label>
-                          <input type="number" value={editingItem.promotionCount || 0} onChange={(e) => setEditingItem({...editingItem, promotionCount: parseInt(e.target.value)})} className="w-full bg-braskick-noite border border-white/10 rounded-xl p-3 text-white outline-none" />
-                        </div>
+
+                        {editingItem.detailedRules?.map((rule: any, idx: number) => (
+                          <div key={rule.id} className="grid grid-cols-1 sm:grid-cols-4 gap-4 p-4 bg-braskick-noite rounded-xl border border-white/5 relative group/rule">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const rules = [...(editingItem.detailedRules || [])];
+                                rules.splice(idx, 1);
+                                setEditingItem({ ...editingItem, detailedRules: rules });
+                              }}
+                              className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-all shadow-lg opacity-0 group-hover/rule:opacity-100"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                            
+                            <div className="space-y-2">
+                              <label className="text-[10px] font-bold text-braskick-muted uppercase tracking-widest">Tipo de Regra</label>
+                              <select
+                                value={rule.type}
+                                onChange={(e) => {
+                                  const rules = [...(editingItem.detailedRules || [])];
+                                  rules[idx].type = e.target.value as any;
+                                  setEditingItem({ ...editingItem, detailedRules: rules });
+                                }}
+                                className="w-full bg-braskick-noite2 border border-white/10 rounded-lg p-2 text-xs outline-none focus:border-braskick-verde"
+                              >
+                                <option value="QUALIFICATION">Qualificação (Ex: Libertadores)</option>
+                                <option value="PROMOTION">Acesso (Ex: Série A)</option>
+                                <option value="RELEGATION">Rebaixamento (Ex: Série B)</option>
+                              </select>
+                            </div>
+
+                            <div className="space-y-2">
+                              <label className="text-[10px] font-bold text-braskick-muted uppercase tracking-widest">Posições (De - Até)</label>
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="number"
+                                  value={rule.minPosition}
+                                  onChange={(e) => {
+                                    const rules = [...(editingItem.detailedRules || [])];
+                                    rules[idx].minPosition = parseInt(e.target.value);
+                                    setEditingItem({ ...editingItem, detailedRules: rules });
+                                  }}
+                                  className="w-full bg-braskick-noite2 border border-white/10 rounded-lg p-2 text-xs outline-none focus:border-braskick-verde"
+                                />
+                                <span className="text-white/20">/</span>
+                                <input
+                                  type="number"
+                                  value={rule.maxPosition}
+                                  onChange={(e) => {
+                                    const rules = [...(editingItem.detailedRules || [])];
+                                    rules[idx].maxPosition = parseInt(e.target.value);
+                                    setEditingItem({ ...editingItem, detailedRules: rules });
+                                  }}
+                                  className="w-full bg-braskick-noite2 border border-white/10 rounded-lg p-2 text-xs outline-none focus:border-braskick-verde"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="space-y-2">
+                              <label className="text-[10px] font-bold text-braskick-muted uppercase tracking-widest">Competicão Alvo</label>
+                              <select
+                                value={rule.targetCompetitionId}
+                                onChange={(e) => {
+                                  const rules = [...(editingItem.detailedRules || [])];
+                                  rules[idx].targetCompetitionId = e.target.value;
+                                  setEditingItem({ ...editingItem, detailedRules: rules });
+                                }}
+                                className="w-full bg-braskick-noite2 border border-white/10 rounded-lg p-2 text-xs outline-none focus:border-braskick-verde"
+                              >
+                                <option value="">Nenhuma</option>
+                                {gameState?.competitions.map(c => (
+                                  <option key={c.id} value={c.id}>{c.name}</option>
+                                ))}
+                              </select>
+                            </div>
+
+                            <div className="space-y-2">
+                              <label className="text-[10px] font-bold text-braskick-muted uppercase tracking-widest">Nome da Vaga</label>
+                              <input
+                                type="text"
+                                value={rule.description}
+                                onChange={(e) => {
+                                  const rules = [...(editingItem.detailedRules || [])];
+                                  rules[idx].description = e.target.value;
+                                  setEditingItem({ ...editingItem, detailedRules: rules });
+                                }}
+                                placeholder="Ex: Libertadores"
+                                className="w-full bg-braskick-noite2 border border-white/10 rounded-lg p-2 text-xs outline-none focus:border-braskick-verde"
+                              />
+                            </div>
+                          </div>
+                        ))}
                       </div>
                       <div className="col-span-2 grid grid-cols-3 gap-4">
                         <div>

@@ -39,28 +39,136 @@ import {
   Flag
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Team, Match, Player, GameState, MatchEvent } from './types';
-import { simulateMatch, updateStandings, generateInitialTeams, generateSchedule, COMPETITIONS, resetTeamsForNewSeason, generateNextTournamentRound } from './gameEngine';
+import { Team, Match, Player, GameState, MatchEvent, Formation } from './types';
+import { simulateMatch, updateStandings, generateInitialTeams, generateSchedule, COMPETITIONS, resetTeamsForNewSeason, generateNextTournamentRound, generateJobOffers } from './gameEngine';
 import { useGameStore } from './gameStore';
 import { supabase } from './services/supabase';
 import { User } from '@supabase/supabase-js';
 import AdminPanel from './components/AdminPanel';
 
+const StandingsHeader = () => (
+  <thead>
+    <tr className="border-b border-slate-100">
+      <th className="p-6 text-sm font-medium text-slate-400 uppercase tracking-wider w-16 text-center">Pos</th>
+      <th className="p-6 text-sm font-medium text-slate-400 uppercase tracking-wider">Clube</th>
+      <th className="p-6 text-sm font-bold text-slate-800 uppercase tracking-wider text-center">Pts</th>
+      <th className="p-6 text-sm font-medium text-slate-400 uppercase tracking-wider text-center">PJ</th>
+      <th className="p-6 text-sm font-medium text-slate-400 uppercase tracking-wider text-center">VIT</th>
+      <th className="p-6 text-sm font-medium text-slate-400 uppercase tracking-wider text-center">E</th>
+      <th className="p-6 text-sm font-medium text-slate-400 uppercase tracking-wider text-center">DER</th>
+      <th className="p-6 text-sm font-medium text-slate-400 uppercase tracking-wider text-center">GM</th>
+      <th className="p-6 text-sm font-medium text-slate-400 uppercase tracking-wider text-center">GC</th>
+      <th className="p-6 text-sm font-medium text-slate-400 uppercase tracking-wider text-center">SG</th>
+      <th className="p-6 text-sm font-medium text-slate-400 uppercase tracking-wider text-center">Ultimas 5</th>
+    </tr>
+  </thead>
+);
+
+const StandingsRow = ({ team, index, userTeamId }: { team: Team, index: number, userTeamId: string }) => (
+  <tr
+    className={`group border-b border-slate-50 hover:bg-slate-50 transition-all ${team.id === userTeamId ? 'bg-emerald-50/50' : ''}`}
+  >
+    <td className="p-6 text-center">
+      <span className="text-lg font-medium text-slate-400">{index + 1}</span>
+    </td>
+    <td className="p-6">
+      <div className="flex items-center gap-4">
+        <div
+          className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shadow-sm border border-slate-100 overflow-hidden"
+          style={{ backgroundColor: team.color }}
+        >
+          {team.logo ? (
+            <img src={team.logo} alt="" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+          ) : (
+            team.name.substring(0, 1)
+          )}
+        </div>
+        <span className={`text-lg font-medium ${team.id === userTeamId ? 'text-emerald-600' : 'text-slate-700'}`}>
+          {team.name}
+        </span>
+      </div>
+    </td>
+    <td className="p-6 text-center bg-slate-50/50">
+      <span className="text-xl font-bold text-slate-900">{team.points}</span>
+    </td>
+    <td className="p-6 text-center">
+      <span className="text-lg font-medium text-slate-600">{team.played}</span>
+    </td>
+    <td className="p-6 text-center">
+      <span className="text-lg font-medium text-slate-600">{team.won}</span>
+    </td>
+    <td className="p-6 text-center">
+      <span className="text-lg font-medium text-slate-600">{team.drawn}</span>
+    </td>
+    <td className="p-6 text-center">
+      <span className="text-lg font-medium text-slate-600">{team.lost}</span>
+    </td>
+    <td className="p-6 text-center">
+      <span className="text-lg font-medium text-slate-600">{team.gf}</span>
+    </td>
+    <td className="p-6 text-center">
+      <span className="text-lg font-medium text-slate-600">{team.ga}</span>
+    </td>
+    <td className="p-6 text-center">
+      <span className="text-lg font-medium text-slate-600">{team.gd > 0 ? `+${team.gd}` : team.gd}</span>
+    </td>
+    <td className="p-6">
+      <div className="flex items-center justify-center gap-2">
+        {(team.form || []).map((res, idx) => (
+          <div key={idx} className="flex items-center justify-center" title={res === 'W' ? 'Vitória' : res === 'D' ? 'Empate' : 'Derrota'}>
+            {res === 'W' && (
+              <div className="w-7 h-7 rounded-full bg-emerald-500 flex items-center justify-center text-white shadow-sm">
+                <CheckCircle2 className="w-4 h-4" />
+              </div>
+            )}
+            {res === 'L' && (
+              <div className="w-7 h-7 rounded-full bg-rose-500 flex items-center justify-center text-white shadow-sm">
+                <XCircle className="w-4 h-4" />
+              </div>
+            )}
+            {res === 'D' && (
+              <div className="w-7 h-7 rounded-full bg-slate-400 flex items-center justify-center text-white shadow-sm">
+                <MinusCircle className="w-4 h-4" />
+              </div>
+            )}
+          </div>
+        ))}
+        {(!team.form || team.form.length === 0) && (
+          <div className="flex gap-2">
+            {[1, 2, 3, 4, 5].map(n => (
+              <div key={n} className="w-7 h-7 rounded-full border border-slate-200 bg-slate-50" />
+            ))}
+          </div>
+        )}
+      </div>
+    </td>
+  </tr>
+);
+
 export default function App() {
   const {
     gameState,
     setGameState,
-    moedas,
-    adicionarMoedas,
-    gastarMoedas,
     resetGame,
     nextWeek,
     nextSeason,
     updateTeams,
     addHistory,
+    acceptJobOffer,
+    declineJobOffer,
+    updateFormation,
+    addRevenue,
     baseTeams,
     setBaseTeams
   } = useGameStore();
+
+  const evolutionTips = [
+    "Treine seus jogadores regularmente para aumentar o overall.",
+    "Mantenha o orçamento equilibrado para contratar reforços.",
+    "Ajuste a tática conforme o adversário.",
+    "Foque em jogadores jovens com alto potencial.",
+    "Melhore a capacidade do estádio para aumentar a receita."
+  ];
 
   const [activeTab, setActiveTab] = useState<'dashboard' | 'squad' | 'league' | 'market' | 'history' | 'fixtures' | 'national_team' | 'account'>('dashboard');
   const [activeCompetitionId, setActiveCompetitionId] = useState<string>('f9e8d7c6-b5a4-4321-8765-432109876543');
@@ -84,6 +192,7 @@ export default function App() {
       });
     }
   }, [gameState?.history, historySort, historyFilter]);
+  const [calendarDate, setCalendarDate] = useState(new Date(2025, 7, 1));
   const [isSimulating, setIsSimulating] = useState(false);
   const [lastMatchResult, setLastMatchResult] = useState<Match | null>(null);
   const [showMatchResult, setShowMatchResult] = useState(false);
@@ -229,6 +338,16 @@ export default function App() {
 
   const [isSyncing, setIsSyncing] = useState(false);
 
+  // Auto-save no Supabase quando o gameState muda
+  useEffect(() => {
+    if (user && gameState) {
+      const timer = setTimeout(() => {
+        saveGame(gameState);
+      }, 5000); // Debounce de 5 segundos
+      return () => clearTimeout(timer);
+    }
+  }, [gameState, user]);
+
   const syncToSupabase = async () => {
     if (!user || !gameState) return;
     setIsSyncing(true);
@@ -236,12 +355,13 @@ export default function App() {
       // 1. Sincronizar Competições
       const { data: compsData, error: compsError } = await supabase
         .from('competitions')
-        .upsert(COMPETITIONS.map(c => ({
+        .upsert(gameState.competitions.map(c => ({
           id: c.id,
           name: c.name,
           type: c.type,
           region: c.region,
-          tier: c.tier
+          tier: c.tier,
+          logo_url: c.logo || null
         })));
 
       if (compsError) throw compsError;
@@ -267,7 +387,8 @@ export default function App() {
           gf: t.gf,
           ga: t.ga,
           gd: t.gd,
-          form: t.form
+          form: t.form,
+          logo_url: t.logo || null
         })));
 
       if (teamsError) throw teamsError;
@@ -612,6 +733,9 @@ export default function App() {
       'PHYSICAL': 'Treino físico pesado! Melhorando seu condicionamento para os jogos.'
     };
     setNews(prev => [...prev, messages[type]]);
+    
+    // Clear national team training notification if it exists
+    setNotifications(prev => prev.filter(n => n.id !== 'nt_training'));
   };
 
   const handleNextSeason = () => {
@@ -968,12 +1092,17 @@ export default function App() {
         }
       });
 
+      // Generate Job Offers
+      const managerOverall = gameState.gameMode === 'PLAYER' ? (gameState.teams.find(t => t.id === gameState.userTeamId)?.players.find(p => p.id === gameState.userPlayerId)?.overall || 65) : 75;
+      const newOffers = generateJobOffers(updatedTeams, gameState.userTeamId, managerOverall);
+
       const updatedState: GameState = {
         ...gameState,
         teams: updatedTeams,
         currentWeek: gameState.currentWeek + 1,
         totalWeeks: finalTotalWeeks,
         matches: updatedMatches,
+        jobOffers: [...(gameState.jobOffers || []), ...newOffers],
         history: [...simulatedMatches, ...gameState.history]
       };
 
@@ -1000,13 +1129,18 @@ export default function App() {
 
         if (myScore > advScore) {
           setNews(prev => [...prev, `Vitória épica! O ${userTeam?.name} dominou o gramado hoje.`]);
-          adicionarMoedas(50); // Bônus por vitória
+          addRevenue(gameState.userTeamId, 1000000); // Bônus por vitória: 1M
         } else if (myScore === advScore) {
           setNews(prev => [...prev, `Empate técnico. O ${userTeam?.name} lutou até o fim.`]);
-          adicionarMoedas(20);
+          addRevenue(gameState.userTeamId, 400000); // Bônus por empate: 400k
         } else {
           setNews(prev => [...prev, `Derrota amarga. A torcida do ${userTeam?.name} cobra mudanças.`]);
         }
+        
+        // Renda de Ingressos (Simulada baseada no overall do time)
+        const ticketRevenue = ((userTeam?.overall || 70) * 15000) + (Math.random() * 50000);
+        addRevenue(gameState.userTeamId, Math.round(ticketRevenue));
+        setNews(prev => [`BILHETERIA: R$ ${Math.round(ticketRevenue).toLocaleString()} arrecadados em ingressos.`, ...prev]);
       }
 
       if (user) {
@@ -1408,27 +1542,20 @@ export default function App() {
           </nav>
 
           <div className="mt-auto pt-6 border-t border-braskick-noite3">
-            <button
-              onClick={() => adicionarMoedas(100)}
-              className="w-full mb-4 py-3 bg-braskick-ouro/10 border border-braskick-ouro/20 rounded-xl text-braskick-ouro hover:bg-braskick-ouro/20 transition-all font-display text-xs uppercase tracking-widest flex items-center justify-center gap-2"
-            >
-              <Coins className="w-4 h-4" />
-              Ganhar Moedas
-            </button>
             <div className="bg-braskick-noite3 rounded-2xl p-4 border border-white/5 mb-4">
               <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2 text-braskick-muted">
-                  <Coins className="w-4 h-4 text-braskick-ouro" />
-                  <span className="text-xs font-bold uppercase tracking-widest">Moedas</span>
-                </div>
-                <span className="font-display text-xl text-braskick-ouro">{moedas}</span>
-              </div>
-              <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-braskick-muted">
                   <DollarSign className="w-4 h-4 text-braskick-verde" />
                   <span className="text-xs font-bold uppercase tracking-widest">Orçamento</span>
                 </div>
                 <span className="font-display text-xl text-braskick-verde">R$ {(userTeam?.budget || 0).toLocaleString('pt-BR')}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-braskick-muted">
+                  <TrendingUp className="w-4 h-4 text-braskick-ouro" />
+                  <span className="text-xs font-bold uppercase tracking-widest">Receita</span>
+                </div>
+                <span className="font-display text-lg text-braskick-ouro">R$ {(userTeam?.revenue || 0).toLocaleString('pt-BR')}</span>
               </div>
             </div>
             {isAdmin && (
@@ -1624,92 +1751,63 @@ export default function App() {
                     </div>
                   )}
 
-                  {/* Monthly Calendar Sequence */}
+                  {/* Next Matches List */}
                   <div className="braskick-card">
                     <div className="flex items-center justify-between mb-6">
-                      <div className="flex items-center gap-4">
-                        <h3 className="text-sm font-bold uppercase tracking-widest text-braskick-muted flex items-center gap-2">
-                          <Calendar className="w-5 h-5" />
-                          CALENDÁRIO DE JOGOS
-                        </h3>
-                        <button 
-                          onClick={() => setShowTips(true)}
-                          className="flex items-center gap-2 px-3 py-1.5 bg-braskick-ouro/10 border border-braskick-ouro/20 rounded-lg text-braskick-ouro hover:bg-braskick-ouro/20 transition-all text-[10px] font-bold uppercase tracking-widest"
-                        >
-                          <Lightbulb className="w-3 h-3" />
-                          Dicas de Evolução
-                        </button>
-                      </div>
-                      <span className="text-braskick-ouro font-display text-lg uppercase tracking-widest">
-                        {(() => {
-                          const months = ['JANEIRO', 'FEVEREIRO', 'MARÇO', 'ABRIL', 'MAIO', 'JUNHO', 'JULHO', 'AGOSTO', 'SETEMBRO', 'OUTUBRO', 'NOVEMBRO', 'DEZEMBRO'];
-                          const startDate = new Date(2025, 7, 1); // Aug 1, 2025
-                          const currentDate = new Date(startDate.getTime() + (gameState.currentWeek - 1) * 7 * 24 * 60 * 60 * 1000);
-                          return `${months[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
-                        })()}
-                      </span>
+                      <h3 className="text-sm font-bold uppercase tracking-widest text-braskick-muted flex items-center gap-2">
+                        <Calendar className="w-5 h-5" />
+                        PRÓXIMOS 5 JOGOS
+                      </h3>
                     </div>
-                    <div className="grid grid-cols-7 gap-4">
-                      {['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'].map(d => (
-                        <div key={d} className="text-center text-[10px] font-bold text-braskick-muted py-2">{d}</div>
-                      ))}
+                    <div className="space-y-3">
                       {(() => {
-                        const startDate = new Date(2025, 7, 1); // Aug 1, 2025
-                        const currentDate = new Date(startDate.getTime() + (gameState.currentWeek - 1) * 7 * 24 * 60 * 60 * 1000);
-                        const monthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-                        const monthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
-                        const startDay = monthStart.getDay();
-                        const totalDays = monthEnd.getDate();
+                        const nextMatches = (gameState.matches || [])
+                          .filter(m => !m.played && (m.homeTeamId === gameState.userTeamId || m.awayTeamId === gameState.userTeamId))
+                          .sort((a, b) => a.week - b.week)
+                          .slice(0, 5);
 
-                        const days = [];
-                        // Padding for previous month
-                        for (let i = 0; i < startDay; i++) {
-                          days.push(<div key={`pad-${i}`} className="aspect-square opacity-0" />);
-                        }
-
-                        for (let day = 1; day <= totalDays; day++) {
-                          const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
-                          const diffTime = date.getTime() - startDate.getTime();
-                          const weekOfGame = Math.floor(diffTime / (7 * 24 * 60 * 60 * 1000)) + 1;
-
-                          // Restringir a exibição da partida: Domingo (0) para Ligas, Quarta (3) para outros
-                          const match = gameState.matches.find(m => {
-                            if (m.week !== weekOfGame) return false;
-                            if (m.homeTeamId !== gameState.userTeamId && m.awayTeamId !== gameState.userTeamId) return false;
-                            
-                            const comp = gameState.competitions.find(c => c.id === m.competitionId);
-                            if (comp?.format === 'LEAGUE' || comp?.type === 'LEAGUE') {
-                              return date.getDay() === 0; // Domingo
-                            } else {
-                              return date.getDay() === 3; // Quarta
-                            }
-                          });
-                          const isToday = day === currentDate.getDate();
-                          const opponentId = match?.homeTeamId === gameState.userTeamId ? match?.awayTeamId : match?.homeTeamId;
-                          const opponent = gameState.teams.find(t => t.id === opponentId);
-
-                          days.push(
-                            <div
-                              key={day}
-                              onClick={() => match && setSelectedCalendarMatch(match)}
-                              className={`aspect-square rounded-2xl border flex flex-col items-center justify-center gap-2 transition-all cursor-pointer group relative ${match ? 'bg-braskick-noite3 border-white/10 hover:border-braskick-ouro/50 hover:bg-braskick-noite2' : 'bg-braskick-noite/20 border-white/5 opacity-20'
-                                } ${isToday ? 'ring-2 ring-braskick-ouro border-braskick-ouro bg-braskick-ouro/5' : ''}`}
-                            >
-                              <span className={`text-[10px] font-bold ${isToday ? 'text-braskick-ouro' : 'text-braskick-muted'}`}>{day}</span>
-                              {match && opponent && (
-                                <TeamDisplay team={opponent} size="small" />
-                              )}
-                              {match && (
-                                <div className="absolute -top-1 -right-1 w-4 h-4 bg-braskick-ouro rounded-full flex items-center justify-center text-[8px] font-bold text-braskick-noite shadow-lg">
-                                  R{match.week}
-                                </div>
-                              )}
+                        if (nextMatches.length === 0) {
+                          return (
+                            <div className="text-center py-8 text-braskick-muted font-display text-xs uppercase tracking-widest opacity-50">
+                              Nenhum jogo agendado
                             </div>
                           );
                         }
-                        return days;
+
+                        return nextMatches.map(match => {
+                          const isHome = match.homeTeamId === gameState.userTeamId;
+                          const opponentId = isHome ? match.awayTeamId : match.homeTeamId;
+                          const opponent = gameState.teams.find(t => t.id === opponentId);
+                          const competition = gameState.competitions.find(c => c.id === match.competitionId);
+                          
+                          if (!opponent) return null;
+
+                          return (
+                            <div key={match.id} className="flex items-center justify-between p-4 bg-braskick-noite/50 border border-white/5 rounded-2xl hover:bg-white/5 transition-all group">
+                              <div className="flex items-center gap-4">
+                                <div className="relative">
+                                  <TeamDisplay team={opponent} size="small" />
+                                  <div className={`absolute -bottom-1 -right-1 px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-widest ${isHome ? 'bg-braskick-verde text-braskick-noite' : 'bg-braskick-ouro text-braskick-noite'}`}>
+                                    {isHome ? 'CASA' : 'FORA'}
+                                  </div>
+                                </div>
+                                <div>
+                                  <div className="font-display text-lg leading-none group-hover:text-braskick-ouro transition-colors">{opponent.name}</div>
+                                  <div className="text-[9px] font-bold text-braskick-muted uppercase tracking-widest mt-1">{competition?.name || 'Competição'} • RODADA {match.week}</div>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <div className="text-[10px] font-bold text-braskick-muted uppercase tracking-widest">OVR {opponent.overall}</div>
+                                <div className="w-12 h-1 bg-white/5 rounded-full mt-1 overflow-hidden">
+                                  <div className="h-full bg-braskick-ouro" style={{ width: `${opponent.overall}%` }} />
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        });
                       })()}
                     </div>
+                    <button onClick={() => setActiveTab('fixtures')} className="w-full mt-6 py-3 braskick-button-secondary text-sm">VER CALENDÁRIO COMPLETO</button>
                   </div>
                 </div>
 
@@ -1733,12 +1831,31 @@ export default function App() {
 
                   {/* News Feed */}
                   <div className="braskick-card">
-                    <h3 className="text-sm font-bold uppercase tracking-widest text-braskick-muted flex items-center gap-2 mb-6">
-                      <Newspaper className="w-5 h-5" />
-                      NOTÍCIAS
-                    </h3>
+                    <div className="flex items-center justify-between mb-6">
+                      <h3 className="text-sm font-bold uppercase tracking-widest text-braskick-muted flex items-center gap-2">
+                        <Newspaper className="w-5 h-5" />
+                        NOTÍCIAS
+                      </h3>
+                      <button 
+                        onClick={() => setShowTips(true)}
+                        className="p-2 bg-braskick-ouro/10 hover:bg-braskick-ouro/20 text-braskick-ouro rounded-lg border border-braskick-ouro/20 transition-all"
+                        title="Dicas de Evolução"
+                      >
+                        <Lightbulb className="w-4 h-4" />
+                      </button>
+                    </div>
                     <div className="space-y-4">
-                      {news.slice(-4).reverse().map((item, i) => (
+                      {/* Dica de Evolução em destaque */}
+                      <div className="p-4 bg-braskick-ouro/5 border border-braskick-ouro/20 rounded-xl">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Lightbulb className="w-3 h-3 text-braskick-ouro" />
+                          <span className="text-[10px] font-bold text-braskick-ouro uppercase tracking-widest">Dica de Evolução</span>
+                        </div>
+                        <p className="text-xs text-white/80 leading-relaxed italic">
+                          "{evolutionTips[gameState.currentWeek % evolutionTips.length]}"
+                        </p>
+                      </div>
+                      {news.slice(-3).reverse().map((item, i) => (
                         <div key={i} className="flex gap-4 p-4 rounded-xl bg-braskick-noite/50 border border-white/5">
                           <div className="w-1.5 h-full bg-braskick-verde rounded-full shrink-0" />
                           <p className="text-sm text-braskick-texto leading-snug">{item}</p>
@@ -1754,27 +1871,39 @@ export default function App() {
                       PROPOSTAS DE CARREIRA
                     </h3>
                     <div className="space-y-4">
-                      {gameState.currentWeek % 5 === 0 ? (
-                        <div className="p-4 rounded-xl bg-braskick-ouro/10 border border-braskick-ouro/20 space-y-3">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-braskick-ouro/20 rounded-lg flex items-center justify-center">
-                              <Globe className="w-6 h-6 text-braskick-ouro" />
+                      {gameState.jobOffers && gameState.jobOffers.length > 0 ? (
+                        gameState.jobOffers.map(offer => {
+                          const offerTeam = gameState.teams.find(t => t.id === offer.teamId);
+                          return (
+                            <div key={offer.id} className="p-4 rounded-xl bg-braskick-ouro/10 border border-braskick-ouro/20 space-y-3">
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-braskick-ouro/20 rounded-lg flex items-center justify-center">
+                                  {offer.type === 'NATIONAL_TEAM' ? <Globe className="w-6 h-6 text-braskick-ouro" /> : <TeamDisplay team={offerTeam} size="small" />}
+                                </div>
+                                <div>
+                                  <div className="font-display text-lg leading-none uppercase">{offerTeam?.name}</div>
+                                  <div className="text-[10px] font-bold text-braskick-muted uppercase tracking-widest mt-1">
+                                    {offer.type === 'NATIONAL_TEAM' ? 'Cargo: Seleção' : `Salário: R$ ${offer.salary.toLocaleString()}`}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="flex gap-2">
+                                <button 
+                                  onClick={() => acceptJobOffer(offer.id)}
+                                  className="flex-1 py-2 bg-braskick-ouro text-braskick-noite font-display text-[10px] uppercase tracking-widest rounded-lg hover:bg-yellow-400 transition-all font-bold"
+                                >
+                                  ACEITAR
+                                </button>
+                                <button 
+                                  onClick={() => declineJobOffer(offer.id)}
+                                  className="flex-1 py-2 bg-white/5 text-white font-display text-[10px] uppercase tracking-widest rounded-lg hover:bg-white/10 transition-all font-bold"
+                                >
+                                  RECUSAR
+                                </button>
+                              </div>
                             </div>
-                            <div>
-                              <div className="font-display text-lg leading-none">SELEÇÃO BRASILEIRA</div>
-                              <div className="text-[10px] font-bold text-braskick-muted uppercase tracking-widest mt-1">Cargo: Treinador</div>
-                            </div>
-                          </div>
-                          <button 
-                            onClick={() => {
-                              setGameState({ ...gameState, userNationalTeamId: 'brazil_national' });
-                              setNews(prev => [`CARREIRA: Você agora é o treinador da Seleção Brasileira!`, ...prev]);
-                            }}
-                            className="w-full py-2 bg-braskick-ouro text-braskick-noite font-display text-xs uppercase tracking-widest rounded-lg hover:bg-yellow-400 transition-all"
-                          >
-                            ACEITAR PROPOSTA
-                          </button>
-                        </div>
+                          );
+                        })
                       ) : (
                         <div className="text-center py-8 text-braskick-muted font-display text-xs uppercase tracking-widest opacity-50">
                           Nenhuma proposta no momento
@@ -1883,7 +2012,7 @@ export default function App() {
                           onChange={(e) => setActiveCompetitionId(e.target.value)}
                           className="bg-transparent font-bold text-slate-800 outline-none cursor-pointer"
                         >
-                          {COMPETITIONS.map(comp => (
+                          {gameState.competitions.map(comp => (
                             <option key={comp.id} value={comp.id}>{comp.name}</option>
                           ))}
                         </select>
@@ -1898,108 +2027,50 @@ export default function App() {
 
                   {/* Table Section */}
                   <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                      <thead>
-                        <tr className="border-b border-slate-100">
-                          <th className="p-6 text-sm font-medium text-slate-400 uppercase tracking-wider w-16 text-center">Clube</th>
-                          <th className="p-6 text-sm font-medium text-slate-400 uppercase tracking-wider"></th>
-                          <th className="p-6 text-sm font-bold text-slate-800 uppercase tracking-wider text-center">Pts</th>
-                          <th className="p-6 text-sm font-medium text-slate-400 uppercase tracking-wider text-center">PJ</th>
-                          <th className="p-6 text-sm font-medium text-slate-400 uppercase tracking-wider text-center">VIT</th>
-                          <th className="p-6 text-sm font-medium text-slate-400 uppercase tracking-wider text-center">E</th>
-                          <th className="p-6 text-sm font-medium text-slate-400 uppercase tracking-wider text-center">DER</th>
-                          <th className="p-6 text-sm font-medium text-slate-400 uppercase tracking-wider text-center">GM</th>
-                          <th className="p-6 text-sm font-medium text-slate-400 uppercase tracking-wider text-center">GC</th>
-                          <th className="p-6 text-sm font-medium text-slate-400 uppercase tracking-wider text-center">SG</th>
-                          <th className="p-6 text-sm font-medium text-slate-400 uppercase tracking-wider text-center">Ultimas 5</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {standings.map((team, i) => (
-                          <tr
-                            key={team.id}
-                            className={`group border-b border-slate-50 hover:bg-slate-50 transition-all ${team.id === gameState.userTeamId ? 'bg-emerald-50/50' : ''
-                              }`}
-                          >
-                            <td className="p-6 text-center">
-                              <span className="text-lg font-medium text-slate-400">{i + 1}</span>
-                            </td>
-                            <td className="p-6">
-                              <div className="flex items-center gap-4">
-                                <div
-                                  className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shadow-sm border border-slate-100 overflow-hidden"
-                                  style={{ backgroundColor: team.color }}
-                                >
-                                  {team.logo ? (
-                                    <img src={team.logo} alt="" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
-                                  ) : (
-                                    team.name.substring(0, 1)
-                                  )}
-                                </div>
-                                <span className={`text-lg font-medium ${team.id === gameState.userTeamId ? 'text-emerald-600' : 'text-slate-700'
-                                  }`}>
-                                  {team.name}
-                                </span>
-                              </div>
-                            </td>
-                            <td className="p-6 text-center bg-slate-50/50">
-                              <span className="text-xl font-bold text-slate-900">{team.points}</span>
-                            </td>
-                            <td className="p-6 text-center">
-                              <span className="text-lg font-medium text-slate-600">{team.played}</span>
-                            </td>
-                            <td className="p-6 text-center">
-                              <span className="text-lg font-medium text-slate-600">{team.won}</span>
-                            </td>
-                            <td className="p-6 text-center">
-                              <span className="text-lg font-medium text-slate-600">{team.drawn}</span>
-                            </td>
-                            <td className="p-6 text-center">
-                              <span className="text-lg font-medium text-slate-600">{team.lost}</span>
-                            </td>
-                            <td className="p-6 text-center">
-                              <span className="text-lg font-medium text-slate-600">{team.gf}</span>
-                            </td>
-                            <td className="p-6 text-center">
-                              <span className="text-lg font-medium text-slate-600">{team.ga}</span>
-                            </td>
-                            <td className="p-6 text-center">
-                              <span className="text-lg font-medium text-slate-600">{team.gd > 0 ? `+${team.gd}` : team.gd}</span>
-                            </td>
-                            <td className="p-6">
-                              <div className="flex items-center justify-center gap-2">
-                                {(team.form || []).map((res, idx) => (
-                                  <div key={idx} className="flex items-center justify-center" title={res === 'W' ? 'Vitória' : res === 'D' ? 'Empate' : 'Derrota'}>
-                                    {res === 'W' && (
-                                      <div className="w-7 h-7 rounded-full bg-emerald-500 flex items-center justify-center text-white shadow-sm">
-                                        <CheckCircle2 className="w-4 h-4" />
-                                      </div>
-                                    )}
-                                    {res === 'L' && (
-                                      <div className="w-7 h-7 rounded-full bg-rose-500 flex items-center justify-center text-white shadow-sm">
-                                        <XCircle className="w-4 h-4" />
-                                      </div>
-                                    )}
-                                    {res === 'D' && (
-                                      <div className="w-7 h-7 rounded-full bg-slate-400 flex items-center justify-center text-white shadow-sm">
-                                        <MinusCircle className="w-4 h-4" />
-                                      </div>
-                                    )}
-                                  </div>
-                                ))}
-                                {(!team.form || team.form.length === 0) && (
-                                  <div className="flex gap-2">
-                                    {[1, 2, 3, 4, 5].map(n => (
-                                      <div key={n} className="w-7 h-7 rounded-full border border-slate-200 bg-slate-50" />
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                    {(() => {
+                      const activeComp = gameState.competitions.find(c => c.id === activeCompetitionId);
+                      const isGroups = activeComp?.format === 'GROUPS' || activeComp?.format === 'GROUPS_KNOCKOUT';
+
+                      if (isGroups) {
+                        // Group teams by groupId
+                        const groups: Record<string, Team[]> = {};
+                        standings.forEach(team => {
+                          const gid = team.groupId || 'A';
+                          if (!groups[gid]) groups[gid] = [];
+                          groups[gid].push(team);
+                        });
+
+                        return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b)).map(([groupId, groupTeams]) => (
+                          <div key={groupId} className="mb-10">
+                            <div className="bg-slate-100 px-6 py-3 font-display text-sm uppercase tracking-widest text-slate-600 font-bold flex items-center justify-between">
+                              <span>Grupo {groupId}</span>
+                              <span className="text-[10px] text-slate-400">Temporada {gameState.season}</span>
+                            </div>
+                            <div className="overflow-x-auto">
+                              <table className="w-full text-left border-collapse min-w-[800px]">
+                                <StandingsHeader />
+                                <tbody>
+                                  {groupTeams.sort((a, b) => b.points - a.points || b.gd - a.gd || b.gf - a.gf).map((team, i) => (
+                                    <StandingsRow key={team.id} team={team} index={i} userTeamId={gameState.userTeamId} />
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        ));
+                      }
+
+                      return (
+                        <table className="w-full text-left border-collapse">
+                          <StandingsHeader />
+                          <tbody>
+                            {standings.map((team, i) => (
+                              <StandingsRow key={team.id} team={team} index={i} userTeamId={gameState.userTeamId} />
+                            ))}
+                          </tbody>
+                        </table>
+                      );
+                    })()}
                   </div>
 
                   {/* Legend Section */}
@@ -2266,23 +2337,42 @@ export default function App() {
                           <div className="text-[10px] font-bold text-braskick-muted uppercase tracking-widest mb-1">Valor de Mercado</div>
                           <div className="font-display text-xl text-braskick-ouro">{formatMoney(player.value)}</div>
                         </div>
-                        <button
-                          onClick={() => {
-                            if (userTeam && userTeam.budget >= player.value) {
-                              const success = useGameStore.getState().buyPlayer(player, team.id, userTeam.id, player.value);
-                              if (success) {
-                                setNews(prev => [`CONTRATAÇÃO: ${player.name} assinou com o ${userTeam.name}!`, ...prev]);
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => {
+                              if (userTeam && userTeam.budget >= player.value) {
+                                const success = useGameStore.getState().buyPlayer(player, team.id, userTeam.id, player.value);
+                                if (success) {
+                                  setNews(prev => [`CONTRATAÇÃO: ${player.name} assinou com o ${userTeam.name}!`, ...prev]);
+                                }
                               }
-                            }
-                          }}
-                          disabled={!userTeam || userTeam.budget < player.value}
-                          className={`px-6 py-3 rounded-xl font-display text-sm uppercase tracking-widest transition-all ${!userTeam || userTeam.budget < player.value
-                            ? 'bg-white/5 text-braskick-muted cursor-not-allowed'
-                            : 'bg-braskick-verde text-white hover:bg-emerald-500 shadow-lg shadow-braskick-verde/20 active:scale-95'
-                            }`}
-                        >
-                          Contratar
-                        </button>
+                            }}
+                            disabled={!userTeam || userTeam.budget < player.value}
+                            className={`flex-1 px-4 py-3 rounded-xl font-display text-[10px] uppercase tracking-widest transition-all ${!userTeam || userTeam.budget < player.value
+                              ? 'bg-white/5 text-braskick-muted cursor-not-allowed'
+                              : 'bg-braskick-verde text-white hover:bg-emerald-500 shadow-lg shadow-braskick-verde/20 active:scale-95'
+                              }`}
+                          >
+                            Contratar
+                          </button>
+                          <button
+                            onClick={() => {
+                              // Abrir modal de proposta (Simulado por enquanto)
+                              const offer = Math.round(player.value * (0.8 + Math.random() * 0.4));
+                              const accepted = Math.random() > 0.5;
+                              if (accepted) {
+                                alert(`Proposta de R$ ${(offer / 1000000).toFixed(1)}M aceita pelo ${team.name}!`);
+                                useGameStore.getState().buyPlayer(player, team.id, userTeam!.id, offer);
+                                setNews(prev => [`NEGOCIAÇÃO: ${player.name} contratado por R$ ${(offer / 1000000).toFixed(1)}M!`, ...prev]);
+                              } else {
+                                alert(`O ${team.name} recusou sua proposta de R$ ${(offer / 1000000).toFixed(1)}M.`);
+                              }
+                            }}
+                            className="px-4 py-3 bg-white/5 hover:bg-white/10 rounded-xl font-display text-[10px] uppercase tracking-widest transition-all border border-white/5"
+                          >
+                            Proposta
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -2675,6 +2765,21 @@ export default function App() {
                 <div className="absolute top-1/2 -translate-y-1/2 -left-1 w-2 h-16 bg-white/20 border border-white/40 rounded-r-lg" />
                 <div className="absolute top-1/2 -translate-y-1/2 -right-1 w-2 h-16 bg-white/20 border border-white/40 rounded-l-lg" />
 
+                {/* Efeito de Apito (Visual) */}
+                <AnimatePresence>
+                  {matchSimulationData.events.length > 0 && matchSimulationData.events[matchSimulationData.events.length - 1].minute === matchSimulationData.time && (
+                    <motion.div
+                      initial={{ scale: 0, opacity: 0 }}
+                      animate={{ scale: [1, 1.5, 1], opacity: [0, 1, 0] }}
+                      className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 pointer-events-none"
+                    >
+                      <div className="bg-braskick-ouro text-braskick-noite px-6 py-2 rounded-full font-display text-2xl uppercase tracking-widest shadow-2xl">
+                        PIIIIII!
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
                 {/* Jogadores */}
                 {matchSimulationData.playerPositions.map((p) => (
                   <motion.div
@@ -2708,10 +2813,23 @@ export default function App() {
                   </div>
                 </motion.div>
                 
+                {/* Legenda de Eventos */}
+                <div className="absolute top-4 right-4 z-30 flex flex-col gap-1">
+                   <div className="flex items-center gap-2 bg-black/40 backdrop-blur-sm px-2 py-1 rounded text-[8px] text-white/70 uppercase font-bold tracking-widest">
+                     <Zap className="w-2 h-2 text-braskick-ouro" /> Gol
+                   </div>
+                   <div className="flex items-center gap-2 bg-black/40 backdrop-blur-sm px-2 py-1 rounded text-[8px] text-white/70 uppercase font-bold tracking-widest">
+                     <div className="w-1.5 h-2 bg-yellow-500 rounded-sm" /> Amarelo
+                   </div>
+                   <div className="flex items-center gap-2 bg-black/40 backdrop-blur-sm px-2 py-1 rounded text-[8px] text-white/70 uppercase font-bold tracking-widest">
+                     <div className="w-1.5 h-2 bg-red-500 rounded-sm" /> Vermelho
+                   </div>
+                </div>
+
                 {/* Eventos Recentes */}
                 <div className="absolute bottom-4 left-4 right-4 z-30">
                   <AnimatePresence mode="popLayout">
-                    {matchSimulationData.events.slice(-2).reverse().map((event, i) => (
+                    {matchSimulationData.events.slice(-3).reverse().map((event, i) => (
                       <motion.div
                         key={event.minute + i}
                         initial={{ opacity: 0, x: -20 }}
@@ -2719,9 +2837,22 @@ export default function App() {
                         exit={{ opacity: 0, scale: 0.9 }}
                         className="bg-braskick-noite2/90 backdrop-blur-sm border border-braskick-ouro/30 p-2 rounded-lg mb-1 flex items-center gap-2 max-w-xs"
                       >
-                        {event.type === 'goal' ? <Zap className="w-3 h-3 text-braskick-ouro" /> : <AlertTriangle className={`w-3 h-3 ${event.type === 'red_card' ? 'text-red-500' : 'text-yellow-500'}`} />}
+                        {event.type === 'goal' ? <Zap className="w-3 h-3 text-braskick-ouro" /> : 
+                         event.type === 'substitution' ? <RotateCcw className="w-3 h-3 text-braskick-verde" /> :
+                         event.type === 'red_card' ? <div className="w-3 h-4 bg-red-500 rounded-sm" /> :
+                         event.type === 'yellow_card' ? <div className="w-3 h-4 bg-yellow-500 rounded-sm" /> :
+                         <AlertTriangle className="w-3 h-3 text-braskick-muted" />}
                         <span className="font-display text-[10px] uppercase tracking-wider text-white">
-                          {event.minute}' {event.type === 'goal' ? 'GOL!' : event.type === 'red_card' ? 'VERMELHO!' : 'AMARELO!'} {event.playerName}
+                          {event.minute}' {
+                            event.type === 'goal' ? 'GOL!' : 
+                            event.type === 'substitution' ? 'SUBSTITUIÇÃO' :
+                            event.type === 'red_card' ? 'VERMELHO!' : 
+                            event.type === 'yellow_card' ? 'AMARELO!' :
+                            event.type === 'foul' ? 'FALTA' :
+                            event.type === 'corner' ? 'ESCANTEIO' :
+                            event.type === 'offside' ? 'IMPEDIMENTO' :
+                            event.type.toUpperCase()
+                          } {event.playerName}
                         </span>
                       </motion.div>
                     ))}
@@ -2733,6 +2864,30 @@ export default function App() {
             {/* Painel Tático Inferior */}
             <div className="bg-braskick-noite2 border-t border-white/5 p-4 sm:p-6 overflow-x-auto">
               <div className="max-w-4xl mx-auto flex items-center gap-4 sm:gap-8 min-w-max">
+                <div className="flex flex-col gap-2">
+                  <span className="text-[10px] font-bold text-braskick-muted uppercase tracking-widest">Formação</span>
+                  <select 
+                    value={matchSimulationData.homeTeam.formation || '4-4-2'}
+                    onChange={(e) => {
+                      const newFormation = e.target.value as Formation;
+                      if (gameState) {
+                        setGameState({
+                          ...gameState,
+                          teams: gameState.teams.map(t => t.id === gameState.userTeamId ? { ...t, formation: newFormation } : t)
+                        });
+                      }
+                      setMatchSimulationData(prev => prev ? { ...prev, homeTeam: { ...prev.homeTeam, formation: newFormation } } : null);
+                    }}
+                    className="bg-braskick-noite border border-white/10 rounded-lg p-1.5 text-[10px] font-bold uppercase tracking-wider text-white outline-none focus:border-braskick-ouro transition-colors"
+                  >
+                    <option value="4-4-2">4-4-2</option>
+                    <option value="4-3-3">4-3-3</option>
+                    <option value="3-5-2">3-5-2</option>
+                    <option value="4-5-1">4-5-1</option>
+                    <option value="5-3-2">5-3-2</option>
+                  </select>
+                </div>
+
                 <div className="flex flex-col gap-2">
                   <span className="text-[10px] font-bold text-braskick-muted uppercase tracking-widest">Mentalidade</span>
                   <div className="flex bg-braskick-noite rounded-lg p-1 border border-white/5">
