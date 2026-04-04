@@ -1180,7 +1180,8 @@ export const updateStandings = (teams: Team[], match: Match): Team[] => {
         ga: team.ga + match.awayScore,
         gd: team.gd + (match.homeScore - match.awayScore),
         points: team.points + (won ? 3 : drawn ? 1 : 0),
-        form: [...(team.form || []), (won ? 'W' : drawn ? 'D' : 'L') as 'W' | 'D' | 'L'].slice(-5)
+        form: [...(team.form || []), (won ? 'W' : drawn ? 'D' : 'L') as 'W' | 'D' | 'L'].slice(-5),
+        revenue: (team.revenue || 0) + (match.revenue || 0)
       };
     }
 

@@ -24,11 +24,13 @@ import * as XLSX from 'xlsx';
 
 interface AdminPanelProps {
   onClose: () => void;
+  onSync?: () => Promise<void>;
 }
 
-export default function AdminPanel({ onClose }: AdminPanelProps) {
+export default function AdminPanel({ onClose, onSync }: AdminPanelProps) {
   const { gameState, updateCompetition, addCompetition, deleteCompetition, addTeam, updateTeam, deleteTeam, updatePlayer } = useGameStore();
   const [activeTab, setActiveTab] = useState<'competitions' | 'teams' | 'players' | 'countries'>('competitions');
+  const [isSyncing, setIsSyncing] = useState(false);
   
   // Selection states
   const [selectedCompId, setSelectedCompId] = useState<string | null>(null);
@@ -195,12 +197,30 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
           </div>
           <h1 className="font-display text-2xl uppercase tracking-widest">Painel Administrativo</h1>
         </div>
-        <button 
-          onClick={onClose}
-          className="p-2 hover:bg-white/5 rounded-full transition-colors"
-        >
-          <X className="w-6 h-6" />
-        </button>
+        <div className="flex items-center gap-4">
+          {onSync && (
+            <button 
+              onClick={async () => {
+                setIsSyncing(true);
+                await onSync();
+                setIsSyncing(false);
+              }}
+              disabled={isSyncing}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${
+                isSyncing ? 'bg-white/5 text-white/30' : 'bg-braskick-ouro/20 text-braskick-ouro hover:bg-braskick-ouro/30 border border-braskick-ouro/20'
+              }`}
+            >
+              <Save className={`w-4 h-4 ${isSyncing ? 'animate-pulse' : ''}`} />
+              {isSyncing ? 'Sincronizando...' : 'Sincronizar Supabase'}
+            </button>
+          )}
+          <button 
+            onClick={onClose}
+            className="p-2 hover:bg-white/5 rounded-full transition-colors"
+          >
+            <X className="w-6 h-6" />
+          </button>
+        </div>
       </header>
 
       <div className="flex-1 flex overflow-hidden">
@@ -259,9 +279,9 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                       <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-3">
                           {comp.logo ? (
-                            <img src={comp.logo} alt="" className="w-10 h-10 object-contain" referrerPolicy="no-referrer" />
+                            <img src={comp.logo} alt="" className="w-10 h-10 object-contain rounded-lg" referrerPolicy="no-referrer" />
                           ) : (
-                            <div className="w-10 h-10 bg-white/5 rounded-lg flex items-center justify-center">
+                            <div className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center">
                               <Trophy className="w-5 h-5 text-braskick-muted" />
                             </div>
                           )}
@@ -345,10 +365,10 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                       <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-3">
                           <div 
-                            className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-display text-xl shadow-lg"
+                            className={`w-10 h-10 ${team.logo ? 'rounded-lg' : 'rounded-full'} flex items-center justify-center text-white font-display text-xl shadow-lg`}
                             style={{ backgroundColor: team.color }}
                           >
-                            {team.logo ? <img src={team.logo} alt="" className="w-full h-full object-contain rounded-lg" referrerPolicy="no-referrer" /> : team.name.substring(0, 1)}
+                            {team.logo ? <img src={team.logo} alt="" className="w-full h-full object-contain" referrerPolicy="no-referrer" /> : team.name.substring(0, 1)}
                           </div>
                           <div>
                             <div className="font-display text-lg leading-none">{team.name}</div>
@@ -400,7 +420,7 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   {gameState?.teams.filter(t => t.isNationalTeam).map(country => (
                     <div key={country.id} className="braskick-card group flex flex-col items-center text-center">
-                      <div className="w-24 h-16 bg-white/5 rounded-lg mb-4 overflow-hidden border border-white/10 relative shadow-xl">
+                      <div className={`w-24 h-16 bg-white/5 ${country.logo ? 'rounded-lg' : 'rounded-full'} mb-4 overflow-hidden border border-white/10 relative shadow-xl`}>
                         {country.logo ? (
                           <img src={country.logo} alt={country.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                         ) : (
@@ -438,7 +458,7 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                       
                       <div className="space-y-6">
                         <div className="flex justify-center mb-4">
-                           <div className="w-32 h-20 bg-white/5 rounded-xl overflow-hidden border border-white/10 shadow-2xl">
+                           <div className={`w-32 h-20 bg-white/5 ${editingCountry.logo ? 'rounded-xl' : 'rounded-full'} overflow-hidden border border-white/10 shadow-2xl relative`}>
                              {editingCountry.logo ? (
                                <img src={editingCountry.logo} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                              ) : (
@@ -574,7 +594,7 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                         <div key={player.id} className="braskick-card group relative overflow-hidden flex flex-col p-0 border border-white/10 hover:border-braskick-verde transition-all">
                           <div className="flex-1 p-5">
                             <div className="flex items-start justify-between mb-4">
-                              <div className="w-16 h-16 bg-braskick-noite3 rounded-2xl overflow-hidden flex-shrink-0 border border-white/5 relative z-10 shadow-lg">
+                              <div className={`w-16 h-16 bg-braskick-noite3 ${player.photo ? 'rounded-2xl' : 'rounded-full'} overflow-hidden flex-shrink-0 border border-white/5 relative z-10 shadow-lg`}>
                                 {player.photo ? (
                                   <img src={player.photo} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                                 ) : (

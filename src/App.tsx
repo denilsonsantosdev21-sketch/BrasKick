@@ -361,7 +361,11 @@ export default function App() {
           type: c.type,
           region: c.region,
           tier: c.tier,
-          logo_url: c.logo || null
+          logo_url: c.logo || null,
+          country_name: c.countryName || null,
+          country_flag: c.countryFlag || null,
+          teams_count: c.teamsCount || 0,
+          detailed_rules: c.detailedRules || []
         })));
 
       if (compsError) throw compsError;
@@ -404,7 +408,9 @@ export default function App() {
         age: p.age,
         value: p.value,
         goals: p.goals,
-        assists: p.assists
+        assists: p.assists,
+        photo_url: p.photo || null,
+        nationality: p.nationality || null
       })));
 
       const { error: playersError } = await supabase
@@ -3320,7 +3326,7 @@ export default function App() {
           </div>
         )}
 
-        {showAdminPanel && <AdminPanel onClose={() => setShowAdminPanel(false)} />}
+        {showAdminPanel && <AdminPanel onClose={() => setShowAdminPanel(false)} onSync={syncToSupabase} />}
       </AnimatePresence>
     </div>
   );
