@@ -438,6 +438,60 @@ export default function App() {
 
       if (matchesError) throw matchesError;
 
+      // 5. Sincronizar Game Assets (Imagens, Logos, etc)
+      const gameAssets: any[] = [];
+      
+      // Logos de Competições
+      gameState.competitions.forEach(c => {
+        if (c.logo) {
+          gameAssets.push({
+            id: `comp_${c.id}`,
+            asset_type: 'competition_logo',
+            reference_id: c.id,
+            url: c.logo,
+            name: c.name
+          });
+        }
+      });
+
+      // Logos de Times
+      gameState.teams.forEach(t => {
+        if (t.logo) {
+          gameAssets.push({
+            id: `team_${t.id}`,
+            asset_type: 'team_logo',
+            reference_id: t.id,
+            url: t.logo,
+            name: t.name
+          });
+        }
+      });
+
+      // Fotos de Jogadores
+      gameState.teams.forEach(t => {
+        t.players.forEach(p => {
+          if (p.photo) {
+            gameAssets.push({
+              id: `player_${p.id}`,
+              asset_type: 'player_photo',
+              reference_id: p.id,
+              url: p.photo,
+              name: p.name
+            });
+          }
+        });
+      });
+
+      if (gameAssets.length > 0) {
+        const { error: assetsError } = await supabase
+          .from('game_assets')
+          .upsert(gameAssets);
+        
+        if (assetsError) {
+          console.warn("Erro ao sincronizar assets, mas continuando...", assetsError);
+        }
+      }
+
       setNews(prev => [...prev, "Dados sincronizados com sucesso no Supabase!"]);
     } catch (error) {
       console.error("Erro ao sincronizar:", error);

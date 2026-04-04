@@ -127,3 +127,24 @@ CREATE POLICY "Usuários podem gerenciar seus próprios saves" ON saves
 CREATE INDEX IF NOT EXISTS idx_players_team_id ON players(team_id);
 CREATE INDEX IF NOT EXISTS idx_teams_competition_id ON teams(competition_id);
 CREATE INDEX IF NOT EXISTS idx_matches_competition_id ON matches(competition_id);
+
+-- Tabela de Assets do Jogo (Imagens, Logos, etc)
+CREATE TABLE IF NOT EXISTS game_assets (
+  id TEXT PRIMARY KEY, -- Ex: 'player_123', 'team_456'
+  asset_type TEXT NOT NULL, -- 'player_photo', 'team_logo', 'competition_logo'
+  reference_id UUID, -- ID do jogador, time ou competição
+  url TEXT NOT NULL,
+  name TEXT,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Habilitar RLS para game_assets
+ALTER TABLE game_assets ENABLE ROW LEVEL SECURITY;
+
+-- Política de leitura pública para assets
+DROP POLICY IF EXISTS "Acesso público para leitura de assets" ON game_assets;
+CREATE POLICY "Acesso público para leitura de assets" ON game_assets FOR SELECT USING (true);
+
+-- Política de escrita para admins (simplificada para o contexto do app)
+DROP POLICY IF EXISTS "Admins podem gerenciar assets" ON game_assets;
+CREATE POLICY "Admins podem gerenciar assets" ON game_assets FOR ALL USING (true);

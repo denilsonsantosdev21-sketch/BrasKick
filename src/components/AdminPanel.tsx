@@ -29,7 +29,7 @@ interface AdminPanelProps {
 
 export default function AdminPanel({ onClose, onSync }: AdminPanelProps) {
   const { gameState, updateCompetition, addCompetition, deleteCompetition, addTeam, updateTeam, deleteTeam, updatePlayer } = useGameStore();
-  const [activeTab, setActiveTab] = useState<'competitions' | 'teams' | 'players' | 'countries'>('competitions');
+  const [activeTab, setActiveTab] = useState<'competitions' | 'teams' | 'players' | 'countries' | 'assets'>('competitions');
   const [isSyncing, setIsSyncing] = useState(false);
   
   // Selection states
@@ -250,11 +250,113 @@ export default function AdminPanel({ onClose, onSync }: AdminPanelProps) {
             icon={<Users className="w-5 h-5" />}
             label="Jogadores"
           />
+          <AdminNavButton 
+            active={activeTab === 'assets'} 
+            onClick={() => setActiveTab('assets')}
+            icon={<ImageIcon className="w-5 h-5" />}
+            label="Imagens"
+          />
         </aside>
 
         {/* Content */}
         <main className="flex-1 overflow-y-auto p-10 bg-braskick-noite">
           <AnimatePresence mode="wait">
+            {activeTab === 'assets' && (
+              <motion.div 
+                key="assets"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="space-y-8"
+              >
+                <div className="flex items-center justify-between">
+                  <h2 className="font-display text-3xl uppercase tracking-widest">Gerenciar Imagens (Assets)</h2>
+                  <div className="text-braskick-muted text-xs font-bold uppercase tracking-widest">
+                    Central de URLs para logos, escudos e fotos
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  {/* Competições */}
+                  {gameState?.competitions.filter(c => c.logo).map(comp => (
+                    <div key={comp.id} className="braskick-card p-4 border border-white/5 flex flex-col gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 bg-white/5 rounded-xl flex items-center justify-center overflow-hidden">
+                          <img src={comp.logo} alt={comp.name} className="w-10 h-10 object-contain" referrerPolicy="no-referrer" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-bold text-sm truncate">{comp.name}</h3>
+                          <span className="text-[10px] text-braskick-muted uppercase tracking-widest">Liga</span>
+                        </div>
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <label className="text-[10px] text-braskick-muted uppercase tracking-widest font-bold">URL da Logo</label>
+                        <input 
+                          type="text" 
+                          value={comp.logo || ''} 
+                          onChange={(e) => updateCompetition(comp.id, { logo: e.target.value })}
+                          className="bg-braskick-noite2 border border-white/10 rounded-lg px-3 py-2 text-xs outline-none focus:border-braskick-verde transition-colors"
+                        />
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Times */}
+                  {gameState?.teams.filter(t => t.logo).map(team => (
+                    <div key={team.id} className="braskick-card p-4 border border-white/5 flex flex-col gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 bg-white/5 rounded-xl flex items-center justify-center overflow-hidden">
+                          <img src={team.logo} alt={team.name} className="w-10 h-10 object-contain" referrerPolicy="no-referrer" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-bold text-sm truncate">{team.name}</h3>
+                          <span className="text-[10px] text-braskick-muted uppercase tracking-widest">Time</span>
+                        </div>
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <label className="text-[10px] text-braskick-muted uppercase tracking-widest font-bold">URL do Escudo</label>
+                        <input 
+                          type="text" 
+                          value={team.logo || ''} 
+                          onChange={(e) => updateTeam({ ...team, logo: e.target.value })}
+                          className="bg-braskick-noite2 border border-white/10 rounded-lg px-3 py-2 text-xs outline-none focus:border-braskick-verde transition-colors"
+                        />
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Jogadores */}
+                  {gameState?.teams.flatMap(t => t.players).filter(p => p.photo).slice(0, 50).map(player => {
+                    const team = gameState.teams.find(t => t.players.some(pl => pl.id === player.id));
+                    return (
+                      <div key={player.id} className="braskick-card p-4 border border-white/5 flex flex-col gap-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 bg-white/5 rounded-xl flex items-center justify-center overflow-hidden">
+                            <img src={player.photo} alt={player.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-bold text-sm truncate">{player.name}</h3>
+                            <span className="text-[10px] text-braskick-muted uppercase tracking-widest">{team?.name || 'Jogador'}</span>
+                          </div>
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          <label className="text-[10px] text-braskick-muted uppercase tracking-widest font-bold">URL da Foto</label>
+                          <input 
+                            type="text" 
+                            value={player.photo || ''} 
+                            onChange={(e) => {
+                              if (team) updatePlayer(team.id, { ...player, photo: e.target.value });
+                            }}
+                            className="bg-braskick-noite2 border border-white/10 rounded-lg px-3 py-2 text-xs outline-none focus:border-braskick-verde transition-colors"
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </motion.div>
+            )}
+
             {activeTab === 'competitions' && (
               <motion.div 
                 key="comps"
