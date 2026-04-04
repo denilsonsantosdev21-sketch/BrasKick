@@ -159,7 +159,9 @@ export default function App() {
     updateFormation,
     addRevenue,
     baseTeams,
-    setBaseTeams
+    setBaseTeams,
+    baseCompetitions,
+    setBaseCompetitions
   } = useGameStore();
 
   const evolutionTips = [
@@ -237,10 +239,10 @@ export default function App() {
 
   const initialSetupTeams = useMemo(() => {
     if (baseTeams && baseTeams.length > 0) return baseTeams;
-    const generated = generateInitialTeams();
+    const generated = generateInitialTeams(baseCompetitions.length > 0 ? baseCompetitions : COMPETITIONS);
     setBaseTeams(generated);
     return generated;
-  }, [baseTeams, setBaseTeams]);
+  }, [baseTeams, setBaseTeams, baseCompetitions]);
 
   const [user, setUser] = useState<User | null>(null);
   const isAdmin = user?.email === 'denilson@braskick.com';
@@ -337,6 +339,119 @@ export default function App() {
   };
 
   const [isSyncing, setIsSyncing] = useState(false);
+  const [globalAssets, setGlobalAssets] = useState<any[]>([]);
+
+  // Função para buscar assets globais (logos, fotos) do Supabase
+  const fetchGlobalAssets = async () => {
+    if (!isSupabaseConfigured) return;
+    try {
+      const { data, error } = await supabase
+        .from('game_assets')
+        .select('*');
+
+      if (error) throw error;
+      if (data) {
+        setGlobalAssets(data);
+      }
+    } catch (error) {
+      console.error("Erro ao buscar assets globais:", error);
+    }
+  };
+
+  // Busca assets ao iniciar o app
+  useEffect(() => {
+    fetchGlobalAssets();
+  }, [isSupabaseConfigured]);
+
+  // Aplica assets aos dados base (para novos jogos)
+  useEffect(() => {
+    if (globalAssets.length > 0) {
+      // Atualiza baseTeams
+      if (baseTeams.length > 0) {
+        const updatedBaseTeams = baseTeams.map(team => {
+          const teamAsset = globalAssets.find(a => a.reference_id === team.id && a.asset_type === 'team_logo');
+          
+          const updatedPlayers = team.players.map(player => {
+            const playerAsset = globalAssets.find(a => a.reference_id === player.id && a.asset_type === 'player_photo');
+            if (playerAsset) return { ...player, photo: playerAsset.url };
+            return player;
+          });
+
+          if (teamAsset) return { ...team, logo: teamAsset.url, players: updatedPlayers };
+          return { ...team, players: updatedPlayers };
+        });
+
+        const hasChanges = JSON.stringify(updatedBaseTeams) !== JSON.stringify(baseTeams);
+        if (hasChanges) {
+          setBaseTeams(updatedBaseTeams);
+        }
+      }
+
+      // Atualiza baseCompetitions
+      const currentComps = baseCompetitions.length > 0 ? baseCompetitions : COMPETITIONS;
+      const updatedBaseComps = currentComps.map(comp => {
+        const compAsset = globalAssets.find(a => a.reference_id === comp.id && a.asset_type === 'competition_logo');
+        if (compAsset) return { ...comp, logo: compAsset.url };
+        return comp;
+      });
+
+      const hasCompChanges = JSON.stringify(updatedBaseComps) !== JSON.stringify(currentComps);
+      if (hasCompChanges) {
+        setBaseCompetitions(updatedBaseComps);
+      }
+    }
+  }, [globalAssets, baseTeams, setBaseTeams, baseCompetitions, setBaseCompetitions]);
+
+  // Aplica assets ao gameState atual (para saves existentes)
+  useEffect(() => {
+    if (globalAssets.length > 0 && gameState) {
+      let changed = false;
+      
+      const updatedTeams = gameState.teams.map(team => {
+        const teamAsset = globalAssets.find(a => a.reference_id === team.id && a.asset_type === 'team_logo');
+        let teamChanged = false;
+        let newLogo = team.logo;
+
+        if (teamAsset && team.logo !== teamAsset.url) {
+          newLogo = teamAsset.url;
+          teamChanged = true;
+          changed = true;
+        }
+
+        const updatedPlayers = team.players.map(player => {
+          const playerAsset = globalAssets.find(a => a.reference_id === player.id && a.asset_type === 'player_photo');
+          if (playerAsset && player.photo !== playerAsset.url) {
+            changed = true;
+            teamChanged = true;
+            return { ...player, photo: playerAsset.url };
+          }
+          return player;
+        });
+
+        if (teamChanged) {
+          return { ...team, logo: newLogo, players: updatedPlayers };
+        }
+        return team;
+      });
+
+      const updatedCompetitions = gameState.competitions.map(comp => {
+        const compAsset = globalAssets.find(a => a.reference_id === comp.id && a.asset_type === 'competition_logo');
+        if (compAsset && comp.logo !== compAsset.url) {
+          changed = true;
+          return { ...comp, logo: compAsset.url };
+        }
+        return comp;
+      });
+
+      if (changed) {
+        setGameState({
+          ...gameState,
+          teams: updatedTeams,
+          competitions: updatedCompetitions
+        });
+      }
+    }
+  }, [globalAssets, gameState, setGameState]);
 
   // Auto-save no Supabase quando o gameState muda
   useEffect(() => {
@@ -623,8 +738,9 @@ export default function App() {
   // Inicializa o jogo com o time escolhido
   const startGame = async (teamId: string, mode: 'MANAGER' | 'PLAYER' = 'MANAGER') => {
     try {
+      const currentComps = baseCompetitions.length > 0 ? baseCompetitions : COMPETITIONS;
       const teams = JSON.parse(JSON.stringify(initialSetupTeams)); // Deep copy to avoid modifying baseTeams
-      const schedule = generateSchedule(teams, COMPETITIONS);
+      const schedule = generateSchedule(teams, currentComps);
       let selectedTeam = teams.find((t: any) => t.id === teamId)!;
       let newPlayer: Player | undefined;
 
@@ -653,7 +769,7 @@ export default function App() {
         managerAge: mode === 'MANAGER' ? managerCreateData.age : undefined,
         currentDate: new Date(2025, 7, 1).toISOString(), // Começa em 1 Ago 2025
         teams,
-        competitions: COMPETITIONS,
+        competitions: currentComps,
         currentWeek: 1,
         totalWeeks: Math.max(...schedule.map(m => m.week)),
         season: 1,
@@ -699,7 +815,8 @@ export default function App() {
   const allStandings = useMemo(() => {
     if (!gameState || !gameState.teams) return {};
     const result: Record<string, Team[]> = {};
-    const competitions = gameState.competitions || COMPETITIONS || [];
+    const currentComps = baseCompetitions.length > 0 ? baseCompetitions : COMPETITIONS;
+    const competitions = gameState?.competitions || currentComps || [];
     competitions.forEach(comp => {
       result[comp.id] = [...gameState.teams]
         .filter(t => t && t.leagueId === comp.id)
@@ -1368,11 +1485,12 @@ export default function App() {
                 onClick={() => {
                   if (!gameState) {
                     const teams = initialSetupTeams;
-                    const schedule = generateSchedule(teams, COMPETITIONS);
+                    const currentComps = baseCompetitions.length > 0 ? baseCompetitions : COMPETITIONS;
+                    const schedule = generateSchedule(teams, currentComps);
                     setGameState({
                       userTeamId: '',
                       teams,
-                      competitions: COMPETITIONS,
+                      competitions: currentComps,
                       currentWeek: 1,
                       totalWeeks: Math.max(...schedule.map(m => m.week)),
                       season: 1,
@@ -2192,7 +2310,7 @@ export default function App() {
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {COMPETITIONS.map(comp => (
+                    { (baseCompetitions.length > 0 ? baseCompetitions : COMPETITIONS).map(comp => (
                       <button
                         key={comp.id}
                         onClick={() => setActiveCompetitionId(comp.id)}
@@ -2501,7 +2619,7 @@ export default function App() {
                           <div className="p-4 bg-white/5 flex items-center justify-between border-b border-white/5">
                             <div className="flex flex-col">
                               <span className="font-display text-lg tracking-wider">RODADA {match.week}</span>
-                              <span className="text-[8px] font-bold text-braskick-muted uppercase tracking-widest">{COMPETITIONS.find(c => c.id === match.competitionId)?.name}</span>
+                              <span className="text-[8px] font-bold text-braskick-muted uppercase tracking-widest">{(gameState?.competitions || baseCompetitions.length > 0 ? baseCompetitions : COMPETITIONS).find(c => c.id === match.competitionId)?.name}</span>
                             </div>
                             <div className={`px-3 py-1 rounded-lg font-display text-xs uppercase tracking-widest ${isWin ? 'bg-braskick-verde/10 text-braskick-verde' : isLoss ? 'bg-red-500/10 text-red-500' : 'bg-braskick-ouro/10 text-braskick-ouro'}`}>
                               {isWin ? 'VITÓRIA' : isLoss ? 'DERROTA' : 'EMPATE'}
@@ -2701,7 +2819,7 @@ export default function App() {
               <div className="absolute top-0 left-0 w-full h-2 bg-braskick-azul" />
               <div className="text-center mb-8">
                 <div className="font-display text-xl text-braskick-muted mb-2 tracking-widest uppercase">Detalhes da Partida</div>
-                <div className="text-[10px] font-bold text-braskick-azul uppercase tracking-[0.3em]">RODADA {selectedCalendarMatch.week} • {COMPETITIONS.find(c => c.id === selectedCalendarMatch.competitionId)?.name}</div>
+                <div className="text-[10px] font-bold text-braskick-azul uppercase tracking-[0.3em]">RODADA {selectedCalendarMatch.week} • {(gameState?.competitions || baseCompetitions.length > 0 ? baseCompetitions : COMPETITIONS).find(c => c.id === selectedCalendarMatch.competitionId)?.name}</div>
               </div>
 
               <div className="flex items-center justify-around py-8 bg-braskick-noite/50 rounded-[2rem] border border-white/5 mb-8">

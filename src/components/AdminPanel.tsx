@@ -294,7 +294,7 @@ export default function AdminPanel({ onClose, onSync }: AdminPanelProps) {
                         <input 
                           type="text" 
                           value={comp.logo || ''} 
-                          onChange={(e) => updateCompetition(comp.id, { logo: e.target.value })}
+                          onChange={(e) => updateCompetition({ ...comp, logo: e.target.value })}
                           className="bg-braskick-noite2 border border-white/10 rounded-lg px-3 py-2 text-xs outline-none focus:border-braskick-verde transition-colors"
                         />
                       </div>
