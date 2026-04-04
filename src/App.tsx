@@ -243,7 +243,7 @@ export default function App() {
   }, [baseTeams, setBaseTeams]);
 
   const [user, setUser] = useState<User | null>(null);
-  const isAdmin = user?.email === 'denilson.santos.dev21@gmail.com' || user?.email?.toLowerCase().includes('denilson') || user?.email?.toLowerCase().includes('admin');
+  const isAdmin = user?.email === 'denilson@braskick.com';
   const [authUsername, setAuthUsername] = useState('');
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
@@ -349,7 +349,7 @@ export default function App() {
   }, [gameState, user]);
 
   const syncToSupabase = async () => {
-    if (!user || !gameState) return;
+    if (!user || !gameState || !isAdmin) return;
     setIsSyncing(true);
     try {
       // 1. Sincronizar Competições
@@ -1533,7 +1533,7 @@ export default function App() {
             {user && (
               <SidebarItem active={activeTab === 'account'} icon={<Settings className="w-5 h-5" />} label="Minha Conta" onClick={() => { setActiveTab('account'); setIsSidebarOpen(false); }} />
             )}
-            {user && (
+            {isAdmin && (
               <button
                 onClick={syncToSupabase}
                 disabled={isSyncing}
@@ -1543,8 +1543,8 @@ export default function App() {
                   <RotateCcw className={`w-5 h-5 ${isSyncing ? 'animate-spin' : ''}`} />
                 </div>
                 <div className="flex flex-col items-start">
-                  <span className="font-display text-xl tracking-wider">Salvar Progresso</span>
-                  <span className="text-[9px] font-bold uppercase tracking-widest opacity-50">Sincronizar com Nuvem</span>
+                  <span className="font-display text-xl tracking-wider">Sincronizar Dados</span>
+                  <span className="text-[9px] font-bold uppercase tracking-widest opacity-50">Admin: Atualizar Nuvem</span>
                 </div>
               </button>
             )}
